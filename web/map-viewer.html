@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<!--
+  Copyright 2026 Google LLC
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cockpit Géospatial Agentique — IGN Géoplateforme 3D</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <style>
+    :root {
+      --bg-panel: rgba(15, 23, 42, 0.92);
+      --bg-card: rgba(30, 41, 59, 0.85);
+      --border: rgba(148, 163, 184, 0.22);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-ign: #10b981;
+      --accent-blue: #38bdf8;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: var(--text-main);
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    header {
+      background: var(--bg-panel);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, #059669, #0284c7);
+      color: white;
+      font-weight: 700;
+      font-size: 0.8rem;
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      letter-spacing: 0.04em;
+    }
+
+    h1 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    search form {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    input[type="search"] {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 0.45rem 0.85rem;
+      border-radius: 8px;
+      width: 300px;
+      font-size: 0.875rem;
+    }
+
+    button {
+      background: rgba(51, 65, 85, 0.85);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 0.45rem 0.8rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    button:hover {
+      background: rgba(71, 85, 105, 0.95);
+      border-color: var(--accent-blue);
+    }
+
+    button.primary {
+      background: #059669;
+      border-color: #10b981;
+      color: #fff;
+    }
+
+    button.primary:hover {
+      background: #047857;
+    }
+
+    button.active {
+      background: rgba(14, 165, 233, 0.25);
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    main {
+      position: relative;
+      height: 100%;
+      width: 100%;
+    }
+
+    #map {
+      position: absolute;
+      inset: 0;
+    }
+
+    aside.sidebar {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      bottom: 1rem;
+      width: 380px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      z-index: 5;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+    }
+
+    section.card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    h2 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent-blue);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    h3 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.45rem;
+    }
+
+    .scenario-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .scenario-btn {
+      text-align: left;
+      padding: 0.55rem 0.7rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .scenario-btn small {
+      color: var(--text-muted);
+      font-size: 0.73rem;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+    }
+
+    .metric-box {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.55rem;
+    }
+
+    .metric-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .metric-value {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--accent-ign);
+      margin-top: 0.15rem;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      list-style: none;
+    }
+
+    .legend li {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .swatch {
+      width: 11px;
+      height: 11px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+
+    pre {
+      background: rgba(2, 6, 23, 0.85);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.65rem;
+      overflow-x: auto;
+      font-size: 0.75rem;
+      line-height: 1.45;
+      color: #e2e8f0;
+      max-height: 200px;
+    }
+
+    /* Native Popover & Dialog styling */
+    [popover] {
+      background: #1e293b;
+      color: var(--text-main);
+      border: 1px solid var(--accent-blue);
+      border-radius: 10px;
+      padding: 1rem;
+      max-width: 360px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+      margin: auto;
+      line-height: 1.45;
+      font-size: 0.83rem;
+    }
+
+    dialog {
+      background: #0f172a;
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+      max-width: 760px;
+      width: 92vw;
+      margin: auto;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.65);
+    }
+
+    dialog::backdrop {
+      background: rgba(2, 6, 23, 0.75);
+      backdrop-filter: blur(4px);
+    }
+
+    .dialog-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .ortho-grid {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    figure {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    figure img {
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    figcaption {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="brand-badge">IGN × AGENTIQUE</span>
+      <h1>Jumeau Numérique &amp; Agents Géoplateforme (BD TOPO 3D • BD ORTHO • RGE ALTI • Isochrones)</h1>
+    </div>
+
+    <search>
+      <form id="geocode-form">
+        <label for="address-input" style="font-size: 0.8rem; color: var(--text-muted);">Géocodage IGN :</label>
+        <input type="search" id="address-input" name="q" value="73 Avenue de Paris, 94160 Saint-Mandé" placeholder="Ex: 73 Avenue de Paris, Saint-Mandé">
+        <button type="submit" class="primary">Analyser la zone</button>
+      </form>
+    </search>
+
+    <div style="display: flex; gap: 0.5rem;">
+      <button type="button" popovertarget="crs-help-popover">Règles OGC / CRS</button>
+      <button type="button" id="open-ortho-modal-btn">Inspection Multimodale VLM</button>
+    </div>
+  </header>
+
+  <!-- Popover déclaratif sans JS pour l'aide sur les projections IGN -->
+  <div id="crs-help-popover" popover="auto">
+    <h3>Astuce Skill IGN : Projections OGC</h3>
+    <p style="margin-top: 0.4rem;">
+      Sur la Géoplateforme (<code>data.geopf.fr</code>), utilisez toujours <code>SRSNAME=CRS:84</code> (ordre <code>lon, lat</code>)
+      pour éviter l'inversion d'axes de <code>EPSG:4326</code> en WFS 2.0 et WMS 1.3.0.
+      Les coordonnées métriques officielles sont fournies en <code>EPSG:2154</code> (Lambert-93).
+    </p>
+  </div>
+
+  <main>
+    <div id="map"></div>
+
+    <aside class="sidebar" aria-label="Panneau de contrôle des agents géospatiaux">
+      <section class="card">
+        <h2>1. Fonds de carte WMTS Géoplateforme</h2>
+        <div class="btn-grid">
+          <button type="button" id="btn-plan-ign" class="active">🗺️ Plan IGN V2</button>
+          <button type="button" id="btn-bd-ortho">🛰️ BD ORTHO 20cm</button>
+          <button type="button" id="btn-cadastre">📐 Parcellaire (PCI)</button>
+          <button type="button" id="btn-toggle-3d" class="active">🏢 Bâti 3D BD TOPO</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>2. Scénarios du Workshop (Actes 1 à 3)</h2>
+        <div class="scenario-list">
+          <button type="button" class="scenario-btn" data-lon="2.424573" data-lat="48.845726" data-label="Siège IGN / Géoroom (Saint-Mandé &amp; Lisière Bois de Vincennes)">
+            <span>🏗️ <strong>Acte 1 &amp; 3 : Saint-Mandé (Siège IGN)</strong></span>
+            <small>Copilote Urbanisme PLU/ZAN &amp; Détective BD ORTHO/TOPO</small>
+          </button>
+          <button type="button" class="scenario-btn" data-lon="2.6997" data-lat="48.4047" data-label="Forêt &amp; Ville de Fontainebleau (77300)">
+            <span>🚒 <strong>Acte 2 : Lisière Forêt de Fontainebleau</strong></span>
+            <small>Cellule de Crise Multi-Agents ADK (Feu + RGE ALTI + Isochrone)</small>
+          </button>
+          <button type="button" class="scenario-btn" data-lon="3.0870" data-lat="45.7772" data-label="Clermont-Ferrand (63000) — Topographie &amp; Mobilité">
+            <span>⛰️ <strong>Scénario Text-to-GIS : Clermont-Ferrand</strong></span>
+            <small>Calcul de pente RGE ALTI, bâti 3D et isochrone 5 min</small>
+          </button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>3. Mesures Temps Réel des Outils Agent</h2>
+        <div class="metrics-grid">
+          <div class="metric-box">
+            <div class="metric-label">Altitude RGE ALTI</div>
+            <div class="metric-value" id="metric-alti">51.99 m</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Pente Locale (100m)</div>
+            <div class="metric-value" id="metric-slope">1.44 %</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Bâtiments BD TOPO</div>
+            <div class="metric-value" id="metric-buildings">77</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Hauteur Max / Étages</div>
+            <div class="metric-value" id="metric-height">28.6 m (R+9)</div>
+          </div>
+        </div>
+        <ul class="legend">
+          <li><span class="swatch" style="background:#38bdf8;"></span> Résidentiel</li>
+          <li><span class="swatch" style="background:#f59e0b;"></span> Tertiaire / Commerce</li>
+          <li><span class="swatch" style="background:#a855f7;"></span> Sportif / Public</li>
+          <li><span class="swatch" style="background:#10b981;"></span> Isochrone 5 min</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>4. Trace JSON / Inspection Objet BD TOPO</h2>
+        <pre tabindex="0"><code id="inspector-code">Cliquez sur un bâtiment 3D de la BD TOPO sur la carte pour inspecter ses attributs officiels (cleabs, identifiants_rnb, hauteur, usage_1, altitude_minimale_sol)...</code></pre>
+      </section>
+    </aside>
+  </main>
+
+  <!-- Modal native <dialog closedby="any"> pour l'inspection Multimodale BD ORTHO vs BD TOPO -->
+  <dialog id="ortho-modal" closedby="any">
+    <div class="dialog-header">
+      <h2>🕵️ Inspection Multimodale : BD ORTHO (WMS) × BD TOPO (WFS)</h2>
+      <form method="dialog">
+        <button type="submit">Fermer (Esc)</button>
+      </form>
+    </div>
+    <div class="ortho-grid">
+      <figure>
+        <img id="modal-ortho-img"
+             src="https://data.geopf.fr/wms-r/wms?SERVICE=WMS&amp;VERSION=1.3.0&amp;REQUEST=GetMap&amp;LAYERS=HR.ORTHOIMAGERY.ORTHOPHOTOS&amp;STYLES=&amp;CRS=CRS:84&amp;BBOX=2.4232,48.8448,2.4259,48.8466&amp;WIDTH=512&amp;HEIGHT=512&amp;FORMAT=image/png"
+             alt="Prise de vue aérienne haute résolution BD ORTHO IGN sur la zone inspectée"
+             width="512"
+             height="512">
+        <figcaption>Tuile <code>HR.ORTHOIMAGERY.ORTHOPHOTOS</code> (512×512 PNG) transmise à Gemini Vision via <code>AgentInput.Image</code> dans <cite>Antigravity SDK for Java</cite>.</figcaption>
+      </figure>
+      <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+        <h3>Diagnostic du Détective Territorial (Acte 3)</h3>
+        <p style="font-size: 0.84rem; color: var(--text-muted); line-height: 1.5;">
+          L'agent autonome compare la géométrie vectorielle de la <code>BDTOPO_V3:batiment</code> avec la photographie
+          aérienne <code>BD ORTHO</code> et vérifie les règles du PLU (recul de 150m du Bois de Vincennes, ZAN) avant de
+          proposer un ticket sur l'Espace Collaboratif IGN (protégé par <code>Policies.askUser</code>).
+        </p>
+        <pre tabindex="0" style="max-height: 290px;"><code id="modal-report-json">Chargement des données temps réel...</code></pre>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const INITIAL_CENTER = [2.424573, 48.845726]; // 73 Avenue de Paris, 94160 Saint-Mandé (IGN)
+
+    // Style MapLibre GL JS connecté directement aux flux WMTS de la Géoplateforme IGN (sans clé API)
+    const map = new maplibregl.Map({
+      container: 'map',
+      center: INITIAL_CENTER,
+      zoom: 16.6,
+      pitch: 55,
+      bearing: -18,
+      antialias: true,
+      style: {
+        version: 8,
+        sources: {
+          'plan-ign': {
+            type: 'raster',
+            tiles: [
+              'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png'
+            ],
+            tileSize: 256,
+            attribution: '© IGN Géoplateforme — Plan IGN V2'
+          },
+          'bd-ortho': {
+            type: 'raster',
+            tiles: [
+              'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/jpeg'
+            ],
+            tileSize: 256,
+            attribution: '© IGN Géoplateforme — BD ORTHO'
+          },
+          'cadastre': {
+            type: 'raster',
+            tiles: [
+              'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=PCI%20vecteur&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png'
+            ],
+            tileSize: 256,
+            attribution: '© IGN — Parcellaire Express'
+          },
+          'bdtopo-buildings': {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] }
+          },
+          'ign-isochrone': {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] }
+          }
+        },
+        layers: [
+          {
+            id: 'layer-plan-ign',
+            type: 'raster',
+            source: 'plan-ign',
+            layout: { visibility: 'visible' }
+          },
+          {
+            id: 'layer-bd-ortho',
+            type: 'raster',
+            source: 'bd-ortho',
+            layout: { visibility: 'none' }
+          },
+          {
+            id: 'layer-cadastre',
+            type: 'raster',
+            source: 'cadastre',
+            layout: { visibility: 'none' },
+            paint: { 'raster-opacity': 0.85 }
+          },
+          {
+            id: 'layer-isochrone-fill',
+            type: 'fill',
+            source: 'ign-isochrone',
+            paint: {
+              'fill-color': '#10b981',
+              'fill-opacity': 0.16
+            }
+          },
+          {
+            id: 'layer-isochrone-line',
+            type: 'line',
+            source: 'ign-isochrone',
+            paint: {
+              'line-color': '#10b981',
+              'line-width': 2.5,
+              'line-dasharray': [2, 2]
+            }
+          },
+          {
+            id: 'layer-buildings-3d',
+            type: 'fill-extrusion',
+            source: 'bdtopo-buildings',
+            paint: {
+              'fill-extrusion-color': [
+                'match',
+                ['get', 'usage_1'],
+                'Résidentiel', '#38bdf8',
+                'Commercial et services', '#f59e0b',
+                'Sportif', '#a855f7',
+                'Industriel', '#f43f5e',
+                '#64748b'
+              ],
+              'fill-extrusion-height': ['get', 'render_height'],
+              'fill-extrusion-base': 0,
+              'fill-extrusion-opacity': 0.86
+            }
+          }
+        ]
+      }
+    });
+
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
+
+    const marker = new maplibregl.Marker({ color: '#10b981' })
+      .setLngLat(INITIAL_CENTER)
+      .addTo(map);
+
+    function stripZ(coords) {
+      if (!Array.isArray(coords)) return coords;
+      if (typeof coords[0] === 'number') return [coords[0], coords[1]];
+      return coords.map(stripZ);
+    }
+
+    async function analyzeLocation(lon, lat, label, isInitial = false) {
+      marker.setLngLat([lon, lat]);
+      if (isInitial) {
+        map.jumpTo({ center: [lon, lat], zoom: 16.7, pitch: 58, bearing: -18 });
+      } else {
+        map.flyTo({ center: [lon, lat], zoom: 16.7, pitch: 58, bearing: -18, duration: 1200 });
+      }
+
+      const dLat = 180 / 111320;
+      const dLon = 180 / (111320 * Math.cos(lat * Math.PI / 180));
+      const bbox = `${(lon - dLon).toFixed(6)},${(lat - dLat).toFixed(6)},${(lon + dLon).toFixed(6)},${(lat + dLat).toFixed(6)}`;
+
+      // Mise à jour de la tuile WMS BD ORTHO dans la modale
+      const wmsUrl = `https://data.geopf.fr/wms-r/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=HR.ORTHOIMAGERY.ORTHOPHOTOS&STYLES=&CRS=CRS:84&BBOX=${bbox}&WIDTH=512&HEIGHT=512&FORMAT=image/png`;
+      document.getElementById('modal-ortho-img').src = wmsUrl;
+
+      try {
+        // 1. Appel WFS BDTOPO_V3:batiment en direct
+        const wfsUrl = `https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=BDTOPO_V3:batiment&SRSNAME=CRS:84&BBOX=${bbox},CRS:84&COUNT=150&OUTPUTFORMAT=application/json`;
+        const batiResp = await fetch(wfsUrl);
+        const batiGeojson = await batiResp.json();
+
+        let maxH = 0;
+        let maxFloors = 0;
+        let featuredBuilding = null;
+        for (const f of (batiGeojson.features || [])) {
+          if (f.geometry && f.geometry.coordinates) {
+            f.geometry.coordinates = stripZ(f.geometry.coordinates);
+          }
+          const p = f.properties || {};
+          const h = typeof p.hauteur === 'number' && p.hauteur > 0
+            ? p.hauteur
+            : (typeof p.nombre_d_etages === 'number' && p.nombre_d_etages > 0 ? p.nombre_d_etages * 3.2 : 9.0);
+          p.render_height = h;
+          if (h > maxH) maxH = h;
+          if (typeof p.nombre_d_etages === 'number' && p.nombre_d_etages > maxFloors) maxFloors = p.nombre_d_etages;
+          if (!featuredBuilding && p.usage_1 === 'Commercial et services' && h > 18) {
+            featuredBuilding = p;
+          }
+        }
+        map.getSource('bdtopo-buildings').setData(batiGeojson);
+
+        if (featuredBuilding) {
+          document.getElementById('inspector-code').textContent = JSON.stringify({
+            cleabs: featuredBuilding.cleabs,
+            identifiants_rnb: featuredBuilding.identifiants_rnb,
+            usage_1: featuredBuilding.usage_1,
+            hauteur_m: featuredBuilding.hauteur,
+            nombre_d_etages: featuredBuilding.nombre_d_etages,
+            altitude_minimale_sol: featuredBuilding.altitude_minimale_sol,
+            altitude_maximale_toit: featuredBuilding.altitude_maximale_toit,
+            date_modification: featuredBuilding.date_modification
+          }, null, 2);
+        }
+
+        document.getElementById('metric-buildings').textContent = (batiGeojson.features || []).length;
+        document.getElementById('metric-height').textContent = `${maxH > 0 ? maxH.toFixed(1) : (maxFloors * 3)} m (R+${maxFloors})`;
+
+        // 2. Appel RGE ALTI (5 points pour altitude & pente)
+        const stepLat = 50 / 111320;
+        const stepLon = 50 / (111320 * Math.cos(lat * Math.PI / 180));
+        const lons = `${lon.toFixed(6)}|${lon.toFixed(6)}|${lon.toFixed(6)}|${(lon + stepLon).toFixed(6)}|${(lon - stepLon).toFixed(6)}`;
+        const lats = `${lat.toFixed(6)}|${(lat + stepLat).toFixed(6)}|${(lat - stepLat).toFixed(6)}|${lat.toFixed(6)}|${lat.toFixed(6)}`;
+        const altiResp = await fetch(`https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json?lon=${encodeURIComponent(lons)}&lat=${encodeURIComponent(lats)}&resource=ign_rge_alti_wld&delimiter=%7C`);
+        const altiData = await altiResp.json();
+        if (altiData.elevations && altiData.elevations.length >= 5) {
+          const z0 = altiData.elevations[0].z;
+          const dzDy = (altiData.elevations[1].z - altiData.elevations[2].z) / 100;
+          const dzDx = (altiData.elevations[3].z - altiData.elevations[4].z) / 100;
+          const slope = Math.hypot(dzDx, dzDy) * 100;
+          document.getElementById('metric-alti').textContent = `${z0.toFixed(2)} m`;
+          document.getElementById('metric-slope').textContent = `${slope.toFixed(2)} %`;
+        }
+
+        // 3. Appel Isochrone 5 min piéton
+        const isoResp = await fetch(`https://data.geopf.fr/navigation/isochrone?point=${lon.toFixed(6)},${lat.toFixed(6)}&resource=bdtopo-valhalla&costValue=180&costType=time&profile=pedestrian&direction=departure`);
+        const isoData = await isoResp.json();
+        if (isoData.geometry) {
+          map.getSource('ign-isochrone').setData({
+            type: 'FeatureCollection',
+            features: [{ type: 'Feature', properties: { costValue: 180 }, geometry: isoData.geometry }]
+          });
+        }
+
+        map.triggerRepaint();
+
+        const summaryReport = {
+          secteur: label,
+          coordonnees_crs84: [Number(lon.toFixed(6)), Number(lat.toFixed(6))],
+          altitude_rge_alti: document.getElementById('metric-alti').textContent,
+          pente_locale: document.getElementById('metric-slope').textContent,
+          batiments_bdtopo: (batiGeojson.features || []).length,
+          hauteur_maximale: document.getElementById('metric-height').textContent,
+          flux_ogc_actifs: ['WMTS Plan IGN V2 / BD ORTHO', 'WFS 2.0 BDTOPO_V3:batiment', 'REST RGE ALTI', 'REST Isochrone Valhalla']
+        };
+        document.getElementById('modal-report-json').textContent = JSON.stringify(summaryReport, null, 2);
+      } catch (err) {
+        console.error('Erreur lors de l’interrogation Géoplateforme:', err);
+      }
+    }
+
+    map.on('load', () => {
+      analyzeLocation(INITIAL_CENTER[0], INITIAL_CENTER[1], '73 Avenue de Paris, 94160 Saint-Mandé (Siège IGN)', true);
+
+      map.on('click', 'layer-buildings-3d', (e) => {
+        if (!e.features || !e.features.length) return;
+        const props = e.features[0].properties;
+        document.getElementById('inspector-code').textContent = JSON.stringify(props, null, 2);
+      });
+
+      map.on('mouseenter', 'layer-buildings-3d', () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+      map.on('mouseleave', 'layer-buildings-3d', () => {
+        map.getCanvas().style.cursor = '';
+      });
+    });
+
+    // Recherche par adresse (API Géocodage IGN)
+    document.getElementById('geocode-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const query = document.getElementById('address-input').value.trim();
+      if (!query) return;
+      const resp = await fetch(`https://data.geopf.fr/geocodage/search?q=${encodeURIComponent(query)}&limit=1`);
+      const data = await resp.json();
+      if (data.features && data.features.length > 0) {
+        const feat = data.features[0];
+        const [lon, lat] = feat.geometry.coordinates;
+        analyzeLocation(lon, lat, feat.properties.label);
+      }
+    });
+
+    // Boutons scénarios rapides
+    document.querySelectorAll('.scenario-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const lon = parseFloat(btn.dataset.lon);
+        const lat = parseFloat(btn.dataset.lat);
+        const label = btn.dataset.label;
+        document.getElementById('address-input').value = label;
+        analyzeLocation(lon, lat, label);
+      });
+    });
+
+    // Contrôles des calques WMTS / 3D
+    const btnPlanIgn = document.getElementById('btn-plan-ign');
+    const btnBdOrtho = document.getElementById('btn-bd-ortho');
+    const btnCadastre = document.getElementById('btn-cadastre');
+    const btnToggle3d = document.getElementById('btn-toggle-3d');
+
+    btnPlanIgn.addEventListener('click', () => {
+      map.setLayoutProperty('layer-plan-ign', 'visibility', 'visible');
+      map.setLayoutProperty('layer-bd-ortho', 'visibility', 'none');
+      btnPlanIgn.classList.add('active');
+      btnBdOrtho.classList.remove('active');
+    });
+
+    btnBdOrtho.addEventListener('click', () => {
+      map.setLayoutProperty('layer-plan-ign', 'visibility', 'none');
+      map.setLayoutProperty('layer-bd-ortho', 'visibility', 'visible');
+      btnBdOrtho.classList.add('active');
+      btnPlanIgn.classList.remove('active');
+    });
+
+    btnCadastre.addEventListener('click', () => {
+      const current = map.getLayoutProperty('layer-cadastre', 'visibility');
+      const next = current === 'visible' ? 'none' : 'visible';
+      map.setLayoutProperty('layer-cadastre', 'visibility', next);
+      btnCadastre.classList.toggle('active', next === 'visible');
+    });
+
+    btnToggle3d.addEventListener('click', () => {
+      const current = map.getLayoutProperty('layer-buildings-3d', 'visibility');
+      const next = current === 'none' ? 'visible' : 'none';
+      map.setLayoutProperty('layer-buildings-3d', 'visibility', next);
+      btnToggle3d.classList.toggle('active', next === 'visible');
+    });
+
+    // Ouverture de la modale native <dialog>
+    document.getElementById('open-ortho-modal-btn').addEventListener('click', () => {
+      document.getElementById('ortho-modal').showModal();
+    });
+  </script>
+</body>
+</html>

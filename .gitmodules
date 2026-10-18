@@ -1,0 +1,3 @@
+[submodule "mcp/mcp-carto"]
+	path = mcp/mcp-carto
+	url = https://github.com/ignfab/mcp-carto.git

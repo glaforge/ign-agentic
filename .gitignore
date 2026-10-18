@@ -1,0 +1,28 @@
+# Maven / Java
+target/
+*.class
+*.log
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+replay_pid*
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDEs & OS
+.DS_Store
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Node / MCP Carto
+node_modules/
+mcp/mcp-carto/dist/
+mcp/mcp-carto/_ref-ext-apps/

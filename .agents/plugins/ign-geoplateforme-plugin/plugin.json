@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ign-geoplateforme-plugin",
+  "version": "1.0.0",
+  "description": "Plugin local IGN Géoplateforme pour Antigravity : expose le serveur MCP Java Géoplateforme (Géocodage, RGE ALTI, Isochrones, BD TOPO WFS, BD ORTHO WMS, Découverte dynamique OGC) et le Skill de référence.",
+  "author": {
+    "name": "Guillaume Laforge"
+  },
+  "license": "Apache-2.0",
+  "keywords": ["ign", "geoplateforme", "gis", "bdtopo", "bdortho", "rge-alti", "mcp"]
+}

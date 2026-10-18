@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "ign-geoplateforme": {
+      "command": "/Users/glaforge/Projects/IGN/mcp/run-ign-mcp-server.sh",
+      "args": []
+    },
+    "ign-mcp-carto": {
+      "command": "/Users/glaforge/Projects/IGN/mcp/run-ign-mcp-carto.sh",
+      "args": []
+    }
+  }
+}
