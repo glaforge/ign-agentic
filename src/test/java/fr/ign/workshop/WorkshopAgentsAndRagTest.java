@@ -15,10 +15,12 @@
  */
 package fr.ign.workshop;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.adk.agents.BaseAgent;
 import com.google.adk.agents.ParallelAgent;
 import com.google.adk.agents.SequentialAgent;
+import dev.langchain4j.community.mcp.server.McpServer;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.segment.TextSegment;
@@ -33,6 +35,7 @@ import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
 import fr.ign.workshop._03_AntigravityDetectiveAgent.QualificationReport;
 import fr.ign.workshop.tools.GeoplateformeTools;
 import io.github.glaforge.antigravity.AgentConfig;
+import io.github.glaforge.antigravity.McpServerConfig;
 import io.github.glaforge.antigravity.Policies;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,7 +51,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@DisplayName("Tests JUnit 6 des Architectures Agents (Actes 1, 2, 3) & Skill IGN")
+@DisplayName("Tests JUnit 6 des Architectures Agents (Actes 1, 2, 3, 4) & Skill IGN")
 class WorkshopAgentsAndRagTest {
 
     @Test
@@ -171,5 +174,56 @@ class WorkshopAgentsAndRagTest {
 
         QualificationReport deserialized = mapper.readValue(json, QualificationReport.class);
         assertEquals(sampleReport, deserialized);
+    }
+
+    @Test
+    @DisplayName("Acte 4 (MCP STDIO) : Configuration des 2 serveurs MCP (ign-geoplateforme + ign-mcp-carto) et exécution tools/call JSON-RPC")
+    void shouldConfigureAct4McpServersAndExecuteMcpToolCall() throws Exception {
+        Path geoLauncher = Path.of("mcp", "run-ign-mcp-server.sh");
+        Path cartoLauncher = Path.of("mcp", "run-ign-mcp-carto.sh");
+        Path pluginMcpConfig = Path.of(".agents", "plugins", "ign-geoplateforme-plugin", "mcp_config.json");
+
+        assertTrue(Files.exists(geoLauncher), "Le script mcp/run-ign-mcp-server.sh doit exister");
+        assertTrue(Files.exists(cartoLauncher), "Le script mcp/run-ign-mcp-carto.sh doit exister");
+        assertTrue(Files.exists(pluginMcpConfig), "La configuration .agents/plugins/ign-geoplateforme-plugin/mcp_config.json doit exister");
+
+        McpServerConfig ignMcp = McpServerConfig.stdio(geoLauncher.toAbsolutePath().toString(), List.of())
+                .withName("ign-geoplateforme")
+                .withForceAllToolsEager(true);
+        McpServerConfig cartoMcp = McpServerConfig.stdio(cartoLauncher.toAbsolutePath().toString(), List.of())
+                .withName("ign-mcp-carto")
+                .withForceAllToolsEager(true);
+
+        AgentConfig config = AgentConfig.builder()
+                .instructions("Test Acte 4 MCP")
+                .addMcpServer(ignMcp)
+                .addMcpServer(cartoMcp)
+                .build();
+
+        assertEquals(2, config.getMcpServers().size(), "L'agent Acte 4 doit enregistrer les 2 serveurs MCP");
+
+        // Test d'un appel JSON-RPC 2.0 tools/call sur McpServer
+        McpServer mcpServer = new McpServer(List.of(new GeoplateformeTools()));
+        ObjectMapper mapper = new ObjectMapper();
+        String callJson = """
+                {
+                  "jsonrpc": "2.0",
+                  "id": 42,
+                  "method": "tools/call",
+                  "params": {
+                    "name": "submit_bdtopo_collaborative_report",
+                    "arguments": {
+                      "cleabsOrLocation": "BATIMENT0000000334291958",
+                      "anomalyType": "COHERENCE_VALIDEE",
+                      "technicalReport": "Test d'invocation MCP JSON-RPC 2.0"
+                    }
+                  }
+                }
+                """;
+        Object resp = mcpServer.handle(mapper.readTree(callJson));
+        JsonNode respNode = mapper.valueToTree(resp);
+        String textContent = respNode.path("result").path("content").path(0).path("text").asText();
+        assertTrue(textContent.contains("SUBMITTED_TO_IGN_COLLABORATIVE_SPACE"),
+                "L'exécution MCP tools/call doit retourner le résultat de l'outil");
     }
 }

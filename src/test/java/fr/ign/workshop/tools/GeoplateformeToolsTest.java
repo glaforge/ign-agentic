@@ -248,6 +248,7 @@ class GeoplateformeToolsTest {
 
             List<?> samples = (List<?>) result.get("sample_buildings");
             assertFalse(samples.isEmpty(), "L'échantillon de bâtiments ne doit pas être vide");
+            assertNotNull(result.get("wfs_geojson_url"), "wfs_geojson_url doit être présent pour le chaînage vers ign-mcp-carto");
 
             Path savedGeoJson = Path.of(result.get("saved_geojson_path").toString());
             assertTrue(Files.exists(savedGeoJson), "buildings.geojson doit être sauvegardé sur disque");
@@ -313,6 +314,64 @@ class GeoplateformeToolsTest {
             assertEquals((byte) 'P', header[1]);
             assertEquals((byte) 'N', header[2]);
             assertEquals((byte) 'G', header[3]);
+        }
+
+        @Test
+        @Order(8)
+        @DisplayName("searchWfsLayers : découvre dynamiquement la couche Parcellaire Express via GetCapabilities")
+        void shouldSearchWfsLayersByKeyword() {
+            Map<String, Object> result = tools.searchWfsLayers("parcelle");
+
+            assertEquals("OK", result.get("status"));
+            int matches = (int) result.get("matches_returned");
+            assertTrue(matches > 0, "Au moins une couche WFS 'parcelle' doit être trouvée dans GetCapabilities");
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, String>> layers = (List<Map<String, String>>) result.get("layers");
+            assertTrue(layers.stream().anyMatch(l -> "CADASTRALPARCELS.PARCELLAIRE_EXPRESS:parcelle".equals(l.get("typeName"))),
+                    "La couche CADASTRALPARCELS.PARCELLAIRE_EXPRESS:parcelle doit figurer dans les résultats");
+        }
+
+        @Test
+        @Order(9)
+        @DisplayName("describeWfsLayerSchema : inspecte le schéma de CADASTRALPARCELS.PARCELLAIRE_EXPRESS:parcelle via DescribeFeatureType")
+        void shouldDescribeWfsLayerSchema() {
+            String typeName = "CADASTRALPARCELS.PARCELLAIRE_EXPRESS:parcelle";
+            Map<String, Object> result = tools.describeWfsLayerSchema(typeName);
+
+            assertEquals("OK", result.get("status"));
+            assertEquals(typeName, result.get("typeName"));
+
+            int attrCount = (int) result.get("attributes_count");
+            assertTrue(attrCount >= 10, "La couche parcelle doit comporter au moins 10 attributs");
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, String>> attributes = (List<Map<String, String>>) result.get("attributes");
+            Set<String> attrNames = attributes.stream().map(a -> a.get("name")).collect(Collectors.toSet());
+            assertTrue(attrNames.containsAll(Set.of("idu", "section", "numero", "contenance", "code_insee")),
+                    "Les attributs cadastraux idu, section, numero, contenance et code_insee doivent être présents");
+        }
+
+        @Test
+        @Order(10)
+        @DisplayName("queryAnyWfsLayer : interroge les parcelles cadastrales autour du siège de l'IGN et retourne wfs_geojson_url")
+        void shouldQueryAnyWfsLayerForCadastralParcels() {
+            String typeName = "CADASTRALPARCELS.PARCELLAIRE_EXPRESS:parcelle";
+            Map<String, Object> result = tools.queryAnyWfsLayer(typeName, IGN_LON, IGN_LAT, 80, 5);
+
+            assertEquals("OK", result.get("status"));
+            assertEquals(typeName, result.get("typeName"));
+
+            int returned = (int) result.get("features_returned");
+            assertTrue(returned > 0 && returned <= 5, "Des parcelles cadastrales doivent être retournées (max 5)");
+
+            String geojsonUrl = (String) result.get("wfs_geojson_url");
+            assertNotNull(geojsonUrl);
+            assertTrue(geojsonUrl.contains("CADASTRALPARCELS.PARCELLAIRE_EXPRESS"),
+                    "wfs_geojson_url doit pointer vers le flux WFS Parcellaire Express");
+
+            List<?> props = (List<?>) result.get("features_properties");
+            assertFalse(props.isEmpty());
         }
     }
 }
