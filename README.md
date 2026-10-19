@@ -92,7 +92,7 @@ Ces 3 outils permettent à un agent de découvrir et d'interroger **à la volée
 | **Boîte à outils Géoplateforme (10 outils)** | Combinaison des 7 outils métier et des 3 outils d'introspection dynamique OGC WFS 2.0 (`search_wfs_layers`, `describe_wfs_layer_schema`, `query_any_wfs_layer`), avec enrichissement des réponses WFS via `wfs_geojson_url` pour le chaînage direct vers `ign-mcp-carto`. | [`GeoplateformeTools.java`](src/main/java/fr/ign/workshop/tools/GeoplateformeTools.java) |
 | **Acte 1 — LangChain4j & Gemini 3** | Configuration explicite de `.toolArgumentsErrorHandler(ToolArgumentsErrorHandler.sendExceptionMessageToLlm())` et `.toolExecutionErrorHandler(ToolExecutionErrorHandler.failInvocationUnlessVisibleToLlm())`, et activation de `.returnThinking(true)` / `.sendThinking(true)` pour la prise en charge des `thought_signature` de `gemini-3.8-flash`. | [`_01_LangChain4jUrbanismCopilot.java`](src/main/java/fr/ign/workshop/_01_LangChain4jUrbanismCopilot.java) |
 | **Acte 2 — Google ADK Java & Dev UI** | Arrêt propre des pools de threads non-daemons (`Schedulers.shutdown()` + `System.exit(0)`) en mode console ; support de `AdkWebServer` (`--ui`) sur `http://localhost:8080/dev-ui/` avec redirection automatique depuis `/` ([`static/index.html`](src/main/resources/static/index.html)) et résolution de `GOOGLE_API_KEY`. | [`_02_AdkMultiAgentCrisisSimulation.java`](src/main/java/fr/ign/workshop/_02_AdkMultiAgentCrisisSimulation.java), [`index.html`](src/main/resources/static/index.html), [`logback.xml`](src/main/resources/logback.xml) |
-| **Acte 4 & Intégration MCP Locale** | Installation 100 % locale au workspace (sans modifier `~/.gemini`) des deux serveurs MCP (`ign-geoplateforme` + `ign-mcp-carto`) dans le plugin local Antigravity et dans `.gemini/settings.json`. | [`mcp_config.json`](.agents/plugins/ign-geoplateforme-plugin/mcp_config.json), [`.gemini/settings.json`](.gemini/settings.json), [`run-ign-mcp-server.sh`](mcp/run-ign-mcp-server.sh), [`run-ign-mcp-carto.sh`](mcp/run-ign-mcp-carto.sh) |
+| **Acte 4 — MCP STDIO & Inférence Locale Open-Weights (Gemma 4)** | Chaînage des deux serveurs MCP locaux (`ign-geoplateforme` + `ign-mcp-carto`) exécutable soit avec Gemini, soit **100 % en local sur le poste (On-Device)** avec **Gemma 4 (`gemma4-e2b`, modèle *open weights* de 1,9 Go)** via **LiteRT-LM** (`LiteRTAgentConfig` sur GPU Metal) sans qu'aucune donnée ni requête LLM ne parte vers un cloud tiers étranger. Démarrage et arrêt automatiques de `litert-lm serve` intégrés à la démo. | [`_04_McpGeoplateformeDemo.java`](src/main/java/fr/ign/workshop/_04_McpGeoplateformeDemo.java), [`mcp_config.json`](.agents/plugins/ign-geoplateforme-plugin/mcp_config.json), [`.gemini/settings.json`](.gemini/settings.json), [`run-ign-mcp-server.sh`](mcp/run-ign-mcp-server.sh), [`run-ign-mcp-carto.sh`](mcp/run-ign-mcp-carto.sh) |
 
 ---
 
@@ -360,12 +360,16 @@ ALERTE : Départ de feu de végétation et risque d'orage violent signalés à l
 
 ---
 
-## 8. Acte 4 (MCP STDIO) : Double Serveur MCP (`ign-geoplateforme` + `ign-mcp-carto`) & Découverte Dynamique OGC
+## 8. Acte 4 (MCP STDIO) : Double Serveur MCP (`ign-geoplateforme` + `ign-mcp-carto`), Découverte Dynamique OGC & Inférence Locale *Open Weights* avec Gemma 4
 
 * **Programmes** : [`IgnGeoplateformeMcpServer.java`](src/main/java/fr/ign/workshop/mcp/IgnGeoplateformeMcpServer.java), [`_04_McpGeoplateformeDemo.java`](src/main/java/fr/ign/workshop/_04_McpGeoplateformeDemo.java) et [`mcp/mcp-carto`](mcp/mcp-carto) (`https://github.com/ignfab/mcp-carto`)
-* **Commande d'exécution** :
+* **Commandes d'exécution** :
   ```bash
+  # Mode par défaut :
   ./mvnw compile exec:java -Dexec.mainClass="fr.ign.workshop._04_McpGeoplateformeDemo"
+
+  # Mode 100 % Local & Souverain (On-Device) avec Gemma 4 (modèle open weights local) via LiteRT-LM :
+  ./mvnw compile exec:java -Dexec.mainClass="fr.ign.workshop._04_McpGeoplateformeDemo" -Dexec.args="--litert"
   ```
 * **Explication** :
   1. **Serveur MCP Java `ign-geoplateforme`** : expose les 10 méthodes `@Tool` de [`GeoplateformeTools.java`](src/main/java/fr/ign/workshop/tools/GeoplateformeTools.java) en tant que serveur MCP `STDIO` via `langchain4j-community-mcp-server`, incluant 3 outils génériques d'exploration OGC WFS 2.0 (`search_wfs_layers`, `describe_wfs_layer_schema`, `query_any_wfs_layer`).
@@ -373,7 +377,16 @@ ALERTE : Départ de feu de végétation et risque d'orage violent signalés à l
   3. **Chaînage automatique des deux serveurs MCP** : `query_bdtopo_buildings` et `query_any_wfs_layer` retournent directement l'attribut `wfs_geojson_url` pointant vers le flux WFS GeoJSON de la Géoplateforme, que l'agent transmet à `show_plan_ign_map` dans `layers[].data_url`.
   4. **Installation 100 % locale au projet** : déclarée dans [`.agents/plugins/ign-geoplateforme-plugin/mcp_config.json`](.agents/plugins/ign-geoplateforme-plugin/mcp_config.json) et [`.gemini/settings.json`](.gemini/settings.json).
 
-### Résultat d'exécution réel de `_04_McpGeoplateformeDemo`
+### 🔒 Souveraineté & Confidentialité : Inférence 100 % Locale avec Gemma 4 (*Open Weights*) vs Cloud
+
+Pour des cas d'usage publics ou régaliens (instruction de dossiers sensibles, croisement de données parcellaires, études d'aménagement en collectivité ou en ministère), il est souvent souhaitable — voire requis — **de ne pas envoyer les prompts ni les données territoriales vers un modèle hébergé dans un cloud étranger**.
+
+Avec l'argument `--litert` (ou `-Dlitert=true`), [`_04_McpGeoplateformeDemo.java`](src/main/java/fr/ign/workshop/_04_McpGeoplateformeDemo.java) bascule intégralement sur **Gemma 4 (`gemma4-e2b`)**, un modèle **open weights** compact ($1,9\text{ Go}$ au format `.litertlm`) exécuté **directement sur la machine locale** via **LiteRT-LM** et `LiteRTAgentConfig` de l'Antigravity SDK for Java :
+* **Zéro appel LLM dans le cloud** : toute l'inférence et la planification d'appels d'outils (*function calling* MCP) tournent en local sur le GPU de la machine (`http://127.0.0.1:9379/v1` avec accélération matérielle Metal / GPU et une fenêtre de contexte de $32\,768\text{ tokens}$). Les seuls échanges réseau effectués par la machine sont les requêtes OGC/REST vers la **Géoplateforme nationale de l'IGN (`data.geopf.fr`)**.
+* **Modèle *Open Weights* inspectable et embarquable hors-ligne** : les poids du modèle `gemma4-e2b` sont stockés localement sur le disque (`~/.litert-lm/models/gemma4-e2b/model.litertlm`), permettant de faire tourner un agent géomaticien complet sur un simple poste de travail ou un ordinateur portable de terrain, même avec un modèle léger de 2 milliards de paramètres.
+* **Cycle de vie 100 % automatisé par la démo Java** : inutile de lancer un serveur manuellement au préalable. [`_04_McpGeoplateformeDemo.java`](src/main/java/fr/ign/workshop/_04_McpGeoplateformeDemo.java) vérifie la configuration `~/.litert-lm/config.json`, teste si `litert-lm serve` écoute déjà sur le port `9379`, le démarre automatiquement en arrière-plan s'il est absent, exécute les 4 appels d'outils MCP STDIO (`search_wfs_layers` $\rightarrow$ `describe_wfs_layer_schema` $\rightarrow$ `query_any_wfs_layer` $\rightarrow$ `show_plan_ign_map`), puis arrête proprement le serveur local en fin d'exécution.
+
+### Résultat d'exécution réel de `_04_McpGeoplateformeDemo --litert` (Gemma 4 `gemma4-e2b` en local)
 ```text
 ================================================================================
   🔌 ACTE 4 (MCP STDIO) : Serveur MCP Géoplateforme & Découverte Dynamique OGC
@@ -381,6 +394,9 @@ ALERTE : Départ de feu de végétation et risque d'orage violent signalés à l
 
 1. Connexion au Serveur MCP Géoplateforme IGN (STDIO) : /Users/glaforge/Projects/IGN/mcp/run-ign-mcp-server.sh
 2. Connexion au Serveur MCP Carto IGN Fab (STDIO)     : /Users/glaforge/Projects/IGN/mcp/run-ign-mcp-carto.sh
+3. Modèle Local On-Device (LiteRT-LM)                 : gemma4-e2b via http://127.0.0.1:9379/v1
+   🚀 Démarrage automatique de `litert-lm serve --port 9379` (/Users/glaforge/.local/bin/litert-lm)...
+   ✔ Serveur LiteRT-LM prêt sur http://127.0.0.1:9379
 
 Requête Utilisateur :
 Explore dynamiquement le serveur MCP Géoplateforme pour trouver la couche des parcelles cadastrales, inspecte son schéma, récupère les parcelles au 73 Avenue de Paris à Saint-Mandé, et affiche-les sur la carte via le serveur MCP Carto de l'IGN.
@@ -391,26 +407,27 @@ Explore dynamiquement le serveur MCP Géoplateforme pour trouver la couche des p
   🔌 [Appel Outil MCP STDIO] show_plan_ign_map
 
 📋 Réponse de l'Agent via les Serveurs MCP Géoplateforme & MCP Carto :
-L'exploration des données cadastrales et l'affichage cartographique ont été réalisés avec succès en combinant les serveurs MCP Géoplateforme IGN et Carto IGN.
+Voici le résultat de l'exploration et de l'affichage de la carte.
 
-1. Recherche et identification de la couche WFS
-* Couche identifiée : `CADASTRALPARCELS.PARCELLAIRE_EXPRESS:parcelle` (titre : PCI Vecteur : Parcelles)
+🗺️ Exploration et Informations Clés
+* Recherche de Couche WFS : La recherche pour le mot-clé `parcelle` a retourné plusieurs couches pertinentes.
+* Inspection du Schéma : Le schéma de la couche `CADASTRALPARCELS.PARCELLAIRE_EXPRESS:parcelle` a été inspecté.
+  * Attributs Clés : `gid`, `numero`, `feuille`, `section`, `nom_com`, `code_com`, `com_abs`, `code_arr`, `idu`, `contenance` (en m²), `code_insee` et la géométrie `geom`.
+* Récupération des Parcelles : Interrogation de `CADASTRALPARCELS.PARCELLAIRE_EXPRESS:parcelle` dans un rayon de 80m autour du siège de l'IGN (lon=2.424573, lat=48.845726).
+  * URL GeoJSON : https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=CADASTRALPARCELS.PARCELLAIRE_EXPRESS%3Aparcelle&SRSNAME=CRS:84&BBOX=2.423481,48.845007,2.425665,48.846445,CRS:84&COUNT=5&OUTPUTFORMAT=application/json
 
-2. Schéma attributaire de la couche
-La couche comporte 13 attributs : `gid` (int), `numero` (string), `feuille` (int), `section` (string), `code_dep` (string), `nom_com` (string), `code_com` (string), `com_abs` (string), `code_arr` (string), `idu` (string), `contenance` (int), `code_insee` (string), `geom` (MultiPolygon).
+📊 Résumé des Parcelles Trouvées
+* Parcelle 1 : Section 0D | Saint-Mandé | Numéro 0017 | Contenance : 294 m²
+* Parcelle 2 : Section 0D | Saint-Mandé | Numéro 0054 | Contenance : 72 112 m² (Siège IGN / Météo-France)
+* Parcelle 3 : Section 0T | Vincennes   | Numéro 0002 | Contenance : 8 056 m²
+* Parcelle 4 : Section 0T | Vincennes   | Numéro 0052 | Contenance : 765 m²
+* Parcelle 5 : Section 0T | Vincennes   | Numéro 0061 | Contenance : 64 m²
 
-3. Parcelles identifiées autour du 73 Avenue de Paris (Saint-Mandé)
-Rayon de 80 m autour de la coordonnée (2.424573, 48.845726) :
-* 940670000D0054 | Saint-Mandé | Section 0D | Numéro 0054 | 72 112 m² (Siège IGN / Météo-France)
-* 940670000D0017 | Saint-Mandé | Section 0D | Numéro 0017 | 294 m² (Bordure Avenue de Paris)
-* 940800000T0002 | Vincennes   | Section 0T | Numéro 0002 | 8 056 m² (Parcelle limitrophe Vincennes)
-* 940800000T0052 | Vincennes   | Section 0T | Numéro 0052 | 765 m² (Parcelle limitrophe Vincennes)
-* 940800000T0061 | Vincennes   | Section 0T | Numéro 0061 | 64 m² (Emprise limitrophe Vincennes)
+🌐 Affichage de la Carte MCP
+* Vue : Plan IGN v2 (position lon 2.424573, lat 48.845726, zoom 17)
+* Couche Affichée : "Parcelles Cadastrales Saint-Mandé" (couleur : `#2563eb`)
 
-4. Affichage sur la carte interactive (`ign-mcp-carto`)
-* Outil appelé : `show_plan_ign_map`
-* Fond de carte : `plan_ign_v2` (zoom 17), centrage lon = 2.424573, lat = 48.845726
-* Couche vectorielle : Parcelles Cadastrales Saint-Mandé (contour bleu `#2563eb`) alimentée en flux dynamique GeoJSON direct via le service WFS 2.0 de la Géoplateforme.
+   🛑 Arrêt du serveur LiteRT-LM démarré par la démo...
 ```
 
 ### Exemples d'interrogations directes depuis l'IDE Antigravity (Skill + Serveurs MCP)
