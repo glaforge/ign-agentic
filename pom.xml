@@ -35,7 +35,7 @@
         <langchain4j-beta.version>1.22.0-beta32</langchain4j-beta.version>
         <adk.version>1.12.0</adk.version>
         <antigravity.version>0.3.1</antigravity.version>
-        <ansiren.version>0.1.1</ansiren.version>
+        <ansiren.version>0.2.0</ansiren.version>
         <jackson.version>2.22.3</jackson.version>
         <slf4j.version>2.0.20</slf4j.version>
         <junit.version>6.1.3</junit.version>
