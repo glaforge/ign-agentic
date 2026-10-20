@@ -385,19 +385,22 @@
       </section>
 
       <section class="card">
-        <h2>2. Scénarios du Workshop (Actes 1 à 3)</h2>
+        <h2>2. Scénarios &amp; Synchronisation Live Agent</h2>
+        <div id="agent-sync-status" style="font-size: 0.76rem; padding: 0.45rem 0.6rem; border-radius: 6px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); color: #6ee7b7; line-height: 1.35;">
+          🟢 <strong>Sync Live Active (1,5 s)</strong> — En écoute de <code>target/map-data/latest-state.json</code>
+        </div>
         <div class="scenario-list">
           <button type="button" class="scenario-btn" data-lon="2.424573" data-lat="48.845726" data-label="Siège IGN / Géoroom (Saint-Mandé &amp; Lisière Bois de Vincennes)">
             <span>🏗️ <strong>Acte 1 &amp; 3 : Saint-Mandé (Siège IGN)</strong></span>
             <small>Copilote Urbanisme PLU/ZAN &amp; Détective BD ORTHO/TOPO</small>
           </button>
-          <button type="button" class="scenario-btn" data-lon="2.6997" data-lat="48.4047" data-label="Forêt &amp; Ville de Fontainebleau (77300)">
+          <button type="button" class="scenario-btn" data-lon="2.695129" data-lat="48.400162" data-label="Boulevard Magenta, 77300 Fontainebleau (Lisière Forêt de Fontainebleau)">
             <span>🚒 <strong>Acte 2 : Lisière Forêt de Fontainebleau</strong></span>
             <small>Cellule de Crise Multi-Agents ADK (Feu + RGE ALTI + Isochrone)</small>
           </button>
-          <button type="button" class="scenario-btn" data-lon="3.0870" data-lat="45.7772" data-label="Clermont-Ferrand (63000) — Topographie &amp; Mobilité">
-            <span>⛰️ <strong>Scénario Text-to-GIS : Clermont-Ferrand</strong></span>
-            <small>Calcul de pente RGE ALTI, bâti 3D et isochrone 5 min</small>
+          <button type="button" class="scenario-btn" data-lon="3.082062" data-lat="45.776588" data-label="Place de Jaude, 63000 Clermont-Ferrand">
+            <span>⛰️ <strong>Prélude (_00_) : Clermont-Ferrand (Place de Jaude)</strong></span>
+            <small>Test Multi-SDK, pente RGE ALTI, bâti 3D et isochrone 5 min</small>
           </button>
         </div>
       </section>
@@ -468,6 +471,10 @@
 
   <script>
     const INITIAL_CENTER = [2.424573, 48.845726]; // 73 Avenue de Paris, 94160 Saint-Mandé (IGN)
+    let currentLon = INITIAL_CENTER[0];
+    let currentLat = INITIAL_CENTER[1];
+    let currentLabel = '73 Avenue de Paris, 94160 Saint-Mandé';
+    let lastAgentTimestamp = 0;
 
     // Style MapLibre GL JS connecté directement aux flux WMTS de la Géoplateforme IGN (sans clé API)
     const map = new maplibregl.Map({
@@ -588,6 +595,10 @@
     }
 
     async function analyzeLocation(lon, lat, label, isInitial = false) {
+      currentLon = lon;
+      currentLat = lat;
+      if (label) currentLabel = label;
+
       marker.setLngLat([lon, lat]);
       if (isInitial) {
         map.jumpTo({ center: [lon, lat], zoom: 16.7, pitch: 58, bearing: -18 });
@@ -688,8 +699,124 @@
       }
     }
 
+    function loadJsGlobal(scriptPath, globalVarName) {
+      return new Promise((resolve) => {
+        const s = document.createElement('script');
+        s.src = `${scriptPath}?t=${Date.now()}`;
+        s.async = true;
+        s.onload = () => {
+          s.remove();
+          resolve(window[globalVarName] || null);
+        };
+        s.onerror = () => {
+          s.remove();
+          resolve(null);
+        };
+        document.head.appendChild(s);
+      });
+    }
+
+    async function loadLiveState() {
+      // 1. Chargement par balise <script> : fonctionne même en ouvrant map-viewer.html via file:// (sans serveur HTTP/Node)
+      const fromJs = await loadJsGlobal('../target/map-data/latest-state.js', '__IGN_LATEST_STATE__');
+      if (fromJs) return fromJs;
+      const fromRootJs = await loadJsGlobal('/target/map-data/latest-state.js', '__IGN_LATEST_STATE__');
+      if (fromRootJs) return fromRootJs;
+
+      // 2. Fallback fetch JSON si servi par un serveur HTTP
+      for (const p of ['../target/map-data/latest-state.json', '/target/map-data/latest-state.json']) {
+        try {
+          const resp = await fetch(`${p}?t=${Date.now()}`, { cache: 'no-store' });
+          if (resp.ok) return await resp.json();
+        } catch (_) {}
+      }
+      return null;
+    }
+
+    let orbitStep = 0;
+
+    async function pollLiveAgentState() {
+      const state = await loadLiveState();
+      if (!state || !state.timestamp || typeof state.lon !== 'number' || typeof state.lat !== 'number') {
+        return;
+      }
+
+      const isFirstPoll = (lastAgentTimestamp === 0);
+      if (state.timestamp === lastAgentTimestamp) {
+        return;
+      }
+      lastAgentTimestamp = state.timestamp;
+
+      const distMeters = Math.hypot(
+        (state.lon - currentLon) * 111320 * Math.cos(state.lat * Math.PI / 180),
+        (state.lat - currentLat) * 111320
+      );
+      const label = state.label || `Secteur (${state.lon.toFixed(5)}, ${state.lat.toFixed(5)})`;
+
+      const statusEl = document.getElementById('agent-sync-status');
+      if (statusEl) {
+        const timeStr = new Date(state.timestamp).toLocaleTimeString('fr-FR');
+        statusEl.innerHTML = `🛰️ <strong>Outil Agent (${timeStr}) : <code>${state.tool}</code></strong><br>📍 ${label}`;
+      }
+
+      if (isFirstPoll) {
+        // Au premier chargement de la page, ne déplacer la caméra que si la dernière adresse en cache diffère de Saint-Mandé
+        if (distMeters > 15) {
+          document.getElementById('address-input').value = label;
+          await analyzeLocation(state.lon, state.lat, label, false);
+        }
+      } else {
+        // Nouvel appel d'outil détecté en direct pendant que la page est ouverte !
+        document.getElementById('address-input').value = label;
+
+        if (distMeters > 10) {
+          // Nouvelle adresse ou nouvelles coordonnées -> flyTo complet + rechargement des couches WFS/Alti/Isochrone
+          await analyzeLocation(state.lon, state.lat, label, false);
+        } else {
+          // Appel d'outil sur la zone courante -> animation 3D flyTo adaptée à l'outil appelé !
+          orbitStep = (orbitStep + 1) % 4;
+          const bearings = [-35, 28, -55, 42];
+          let targetZoom = 16.9;
+          let targetPitch = 60;
+          let targetBearing = bearings[orbitStep];
+
+          if (state.tool === 'geocode_address') {
+            await analyzeLocation(state.lon, state.lat, label, false);
+            map.flyTo({ center: [state.lon, state.lat], zoom: 17.1, pitch: 62, bearing: 25, duration: 1600 });
+          } else if (state.tool === 'compute_isochrone') {
+            map.flyTo({ center: [state.lon, state.lat], zoom: 15.3, pitch: 45, bearing: 0, duration: 1600 });
+          } else if (state.tool === 'download_bdortho_aerial_image') {
+            map.setLayoutProperty('layer-plan-ign', 'visibility', 'none');
+            map.setLayoutProperty('layer-bd-ortho', 'visibility', 'visible');
+            document.getElementById('btn-bd-ortho').classList.add('active');
+            document.getElementById('btn-plan-ign').classList.remove('active');
+            map.flyTo({ center: [state.lon, state.lat], zoom: 17.4, pitch: 40, bearing: 15, duration: 1600 });
+          } else if (state.tool === 'query_any_wfs_layer') {
+            const typeName = (state.details && state.details.typeName) ? String(state.details.typeName) : '';
+            if (typeName.toLowerCase().includes('parcelle')) {
+              map.setLayoutProperty('layer-cadastre', 'visibility', 'visible');
+              document.getElementById('btn-cadastre').classList.add('active');
+            }
+            map.flyTo({ center: [state.lon, state.lat], zoom: 17.2, pitch: 52, bearing: targetBearing, duration: 1600 });
+          } else {
+            map.flyTo({ center: [state.lon, state.lat], zoom: targetZoom, pitch: targetPitch, bearing: targetBearing, duration: 1600 });
+          }
+        }
+      }
+
+      // Charger le rapport structuré Acte 3 (agent-report.js / .json) s'il est disponible
+      const agentReport = await loadJsGlobal('../target/map-data/agent-report.js', '__IGN_AGENT_REPORT__');
+      if (agentReport) {
+        document.getElementById('modal-report-json').textContent = JSON.stringify(agentReport, null, 2);
+      }
+    }
+
     map.on('load', () => {
       analyzeLocation(INITIAL_CENTER[0], INITIAL_CENTER[1], '73 Avenue de Paris, 94160 Saint-Mandé (Siège IGN)', true);
+
+      // Démarrer le polling live (toutes les 1,2 s) sur target/map-data/latest-state.js
+      setInterval(pollLiveAgentState, 1200);
+      pollLiveAgentState();
 
       map.on('click', 'layer-buildings-3d', (e) => {
         if (!e.features || !e.features.length) return;

@@ -206,7 +206,12 @@ public class _03_AntigravityDetectiveAgent {
             // Sauvegarde du rapport structuré pour la visionneuse cartographique 3D (Acte 4)
             Path reportPath = Path.of("target", "map-data", "agent-report.json");
             Files.createDirectories(reportPath.getParent());
-            new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(reportPath.toFile(), report);
+            String reportJson = new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(report);
+            Files.writeString(reportPath, reportJson);
+            Files.writeString(
+                    reportPath.getParent().resolve("agent-report.js"),
+                    "window.__IGN_AGENT_REPORT__ = " + reportJson + ";\n"
+            );
 
             System.out.println("\n" + bold(green("================================================================================")));
             System.out.println(bold(green("  ✅ RAPPORT STRUCTURÉ DU DÉTECTIVE TERRITORIAL (Java Record QualificationReport)")));

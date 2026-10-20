@@ -45,14 +45,14 @@ flowchart TD
         A2["Acte 2 : _02_AdkMultiAgentCrisisSimulation<br/>Cellule de Crise Multi-Agents (Sequential + Parallel + Dev UI)"]
         A3["Acte 3 : _03_AntigravityDetectiveAgent<br/>Détective Territorial Multimodal (BD ORTHO × BD TOPO)"]
         A4["Acte 4 : _04_McpGeoplateformeDemo<br/>Découverte Dynamique OGC & Cartographie MCP"]
-        COCKPIT["Cockpit 3D : map-viewer.html<br/>MapLibre GL JS 3D Temps Réel"]
+        COCKPIT["Cockpit 3D : web/map-viewer.html<br/>MapLibre GL JS 3D & Sync Live"]
     end
 
     TOOLS --> A0 & A1 & A2 & A3
     MCP_GEO & MCP_CARTO --> A4
     SKILL --> A3 & A4
     WMS & WFS & ALTI & ISO --> COCKPIT
-    TOOLS -. "target/map-data/*.geojson" .-> COCKPIT
+    TOOLS -. "target/map-data/latest-state.js & *.geojson" .-> COCKPIT
 ```
 
 ---
@@ -93,6 +93,8 @@ Ces 3 outils permettent à un agent de découvrir et d'interroger **à la volée
 | **Acte 1 — LangChain4j & Gemini 3** | Configuration explicite de `.toolArgumentsErrorHandler(ToolArgumentsErrorHandler.sendExceptionMessageToLlm())` et `.toolExecutionErrorHandler(ToolExecutionErrorHandler.failInvocationUnlessVisibleToLlm())`, et activation de `.returnThinking(true)` / `.sendThinking(true)` pour la prise en charge des `thought_signature` de `gemini-3.8-flash`. | [`_01_LangChain4jUrbanismCopilot.java`](src/main/java/fr/ign/workshop/_01_LangChain4jUrbanismCopilot.java) |
 | **Acte 2 — Google ADK Java & Dev UI** | Arrêt propre des pools de threads non-daemons (`Schedulers.shutdown()` + `System.exit(0)`) en mode console ; support de `AdkWebServer` (`--ui`) sur `http://localhost:8080/dev-ui/` avec redirection automatique depuis `/` ([`static/index.html`](src/main/resources/static/index.html)) et résolution de `GOOGLE_API_KEY`. | [`_02_AdkMultiAgentCrisisSimulation.java`](src/main/java/fr/ign/workshop/_02_AdkMultiAgentCrisisSimulation.java), [`index.html`](src/main/resources/static/index.html), [`logback.xml`](src/main/resources/logback.xml) |
 | **Acte 4 — MCP STDIO & Inférence Locale Open-Weights (Gemma 4)** | Chaînage des deux serveurs MCP locaux (`ign-geoplateforme` + `ign-mcp-carto`) exécutable soit avec Gemini, soit **100 % en local sur le poste (On-Device)** avec **Gemma 4 (`gemma4-e2b`, modèle *open weights* de 1,9 Go)** via **LiteRT-LM** (`LiteRTAgentConfig` sur GPU Metal) sans qu'aucune donnée ni requête LLM ne parte vers un cloud tiers étranger. Démarrage et arrêt automatiques de `litert-lm serve` intégrés à la démo. | [`_04_McpGeoplateformeDemo.java`](src/main/java/fr/ign/workshop/_04_McpGeoplateformeDemo.java), [`mcp_config.json`](.agents/plugins/ign-geoplateforme-plugin/mcp_config.json), [`.gemini/settings.json`](.gemini/settings.json), [`run-ign-mcp-server.sh`](mcp/run-ign-mcp-server.sh), [`run-ign-mcp-carto.sh`](mcp/run-ign-mcp-carto.sh) |
+| **Cockpit 3D & Synchronisation Live (`file://` & HTTP)** | Synchronisation temps réel ($1,2\text{ s}$) entre les appels d'outils Java/MCP et [`web/map-viewer.html`](web/map-viewer.html) via `target/map-data/latest-state.js` (`window.__IGN_LATEST_STATE__`) et `agent-report.js` (`window.__IGN_AGENT_REPORT__`), fonctionnant même en ouvrant `web/map-viewer.html` directement via `file://` sans serveur HTTP, avec animations 3D `flyTo` et bascule automatique des couches (`BD ORTHO`, `Cadastre`). | [`web/map-viewer.html`](web/map-viewer.html), [`GeoplateformeTools.java`](src/main/java/fr/ign/workshop/tools/GeoplateformeTools.java), [`_03_AntigravityDetectiveAgent.java`](src/main/java/fr/ign/workshop/_03_AntigravityDetectiveAgent.java) |
+| **Supports de Présentation PowerPoint** | Génération programmatique des supports de présentation complets du workshop (version standard et version à dévoilement progressif). | [`docs/presentation-workshop-ign.pptx`](docs/presentation-workshop-ign.pptx), [`docs/presentation-workshop-ign-progressive.pptx`](docs/presentation-workshop-ign-progressive.pptx), [`docs/generate_presentation.py`](docs/generate_presentation.py), [`docs/generate_presentation_progressive.py`](docs/generate_presentation_progressive.py) |
 
 ---
 
@@ -101,8 +103,11 @@ Ces 3 outils permettent à un agent de découvrir et d'interroger **à la volée
 * **Programme** : [`_00_TestGeoplateformeTools.java`](src/main/java/fr/ign/workshop/_00_TestGeoplateformeTools.java)
 * **Commandes d'exécution** :
   ```bash
-  # Exécution du programme de vérification :
+  # Exécution du programme de vérification (par défaut sur Place de Jaude, 63000 Clermont-Ferrand) :
   ./mvnw compile exec:java -Dexec.mainClass="fr.ign.workshop._00_TestGeoplateformeTools"
+
+  # Ou sur n'importe quelle adresse passée en argument CLI :
+  ./mvnw compile exec:java -Dexec.mainClass="fr.ign.workshop._00_TestGeoplateformeTools" -Dexec.args="73 Avenue de Paris, 94160 Saint-Mandé"
 
   # Ou via la suite de tests automatisés JUnit 6 :
   ./mvnw test
@@ -112,7 +117,7 @@ Ces 3 outils permettent à un agent de découvrir et d'interroger **à la volée
   1. `ToolSpecifications.toolSpecificationsFrom(tools)` (**LangChain4j**)
   2. `FunctionTool.create(tools, ...)` (**Google ADK Java**)
   3. `ToolRegistry.registerToolsFromObject(tools)` (**Antigravity SDK for Java**, via la réflexion Tier-3 sans dépendance)
-  Puis exécute chaque outil en temps réel sur le **73 Avenue de Paris, 94160 Saint-Mandé**.
+  Puis exécute chaque outil en temps réel sur la **Place de Jaude, 63000 Clermont-Ferrand** (ce qui déclenche également un `flyTo` automatique depuis Saint-Mandé si le Cockpit 3D [`web/map-viewer.html`](web/map-viewer.html) est ouvert).
 
 ### Résultat d'exécution réel
 ```text
@@ -121,23 +126,23 @@ Ces 3 outils permettent à un agent de découvrir et d'interroger **à la volée
 ================================================================================
 
 1. Vérification de la portabilité de GeoplateformeTools.java :
-  • LangChain4j : 10 @Tool détectés -> [get_elevation_and_slope, query_bdtopo_buildings, query_bdtopo_environment, download_bdortho_aerial_image, submit_bdtopo_collaborative_report, describe_wfs_layer_schema, search_wfs_layers, query_any_wfs_layer, geocode_address, compute_isochrone]
+  • LangChain4j : 10 @Tool détectés -> [get_elevation_and_slope, query_bdtopo_buildings, query_bdtopo_environment, download_bdortho_aerial_image, geocode_address, compute_isochrone, describe_wfs_layer_schema, submit_bdtopo_collaborative_report, search_wfs_layers, query_any_wfs_layer]
   • ADK Java    : FunctionTools créés -> [geocode_address, get_elevation_and_slope, query_bdtopo_buildings, ...]
   • Antigravity : 10 outils enregistrés (Tier-3 Reflection) -> [get_elevation_and_slope, submit_bdtopo_collaborative_report, describe_wfs_layer_schema, search_wfs_layers, geocode_address, download_bdortho_aerial_image, compute_isochrone, query_any_wfs_layer, query_bdtopo_buildings, query_bdtopo_environment]
 
 2. Appels temps réel aux APIs ouvertes de la Géoplateforme (data.geopf.fr) :
-  🛰️ [Géoplateforme IGN Tool] geocode_address(query="73 Avenue de Paris, 94160 Saint-Mandé")
-    -> Géocodage : 73 Avenue de Paris 94160 Saint-Mandé | WGS84=(2.424573, 48.845726) | Lambert-93=(657770.33, 6860785.03)
-  🛰️ [Géoplateforme IGN Tool] get_elevation_and_slope(lon=2.42457, lat=48.84573)
-    -> RGE ALTI  : Altitude = 51.99 m NGF | Pente = 1.44% (FAIBLE (< 3%)) | Écoulement descendant vers le Sud-Est (montée vers le Nord-Ouest)
-  🛰️ [Géoplateforme IGN Tool] query_bdtopo_buildings(lon=2.42457, lat=48.84573, radius=120m)
-    -> BD TOPO Bâti (120m) : 77 bâtiments | Hauteur max = 28.6m (9 étages) | Usages = {Résidentiel=41, Indifférencié=15, Annexe=1, Commercial et services=15, Sportif=4, Industriel=1}
-  🛰️ [Géoplateforme IGN Tool] query_bdtopo_environment(lon=2.42457, lat=48.84573, radius=250m)
-    -> BD TOPO Environnement : 18 zones de végétation | 5 cours d'eau à proximité
-  🛰️ [Géoplateforme IGN Tool] compute_isochrone(lon=2.42457, lat=48.84573, duration=300s, profile=pedestrian)
-    -> Isochrone 5 min piéton : Enveloppe 0.68 km x 0.56 km (17 sommets)
-  🛰️ [Géoplateforme IGN Tool] download_bdortho_aerial_image(lon=2.42457, lat=48.84573, radius=100m)
-    -> BD ORTHO WMS (512x512 PNG) : 590904 octets sauvegardés dans /Users/glaforge/Projects/IGN/target/map-data/bd_ortho_tile.png
+  🛰️ [Géoplateforme IGN Tool] geocode_address(query="Place de Jaude, 63000 Clermont-Ferrand")
+    -> Géocodage : place de Jaude 63000 Clermont-Ferrand | WGS84=(3.082062, 45.776588) | Lambert-93=(706376.8, 6519667.17)
+  🛰️ [Géoplateforme IGN Tool] get_elevation_and_slope(lon=3.08206, lat=45.77659)
+    -> RGE ALTI  : Altitude = 387.16 m NGF | Pente = 2.12% (FAIBLE (< 3%)) | Écoulement descendant vers le Sud-Ouest (montée vers le Nord-Est)
+  🛰️ [Géoplateforme IGN Tool] query_bdtopo_buildings(lon=3.08206, lat=45.77659, radius=120m)
+    -> BD TOPO Bâti (120m) : 86 bâtiments | Hauteur max = 29.1m (10 étages) | Usages = {Commercial et services=42, Résidentiel=36, Annexe=2, Indifférencié=4, Religieux=2}
+  🛰️ [Géoplateforme IGN Tool] query_bdtopo_environment(lon=3.08206, lat=45.77659, radius=250m)
+    -> BD TOPO Environnement : 9 zones de végétation | 10 cours d'eau à proximité
+  🛰️ [Géoplateforme IGN Tool] compute_isochrone(lon=3.08206, lat=45.77659, duration=300s, profile=pedestrian)
+    -> Isochrone 5 min piéton : Enveloppe 0.59 km x 0.71 km (13 sommets)
+  🛰️ [Géoplateforme IGN Tool] download_bdortho_aerial_image(lon=3.08206, lat=45.77659, radius=100m)
+    -> BD ORTHO WMS (512x512 PNG) : 678033 octets sauvegardés dans /Users/glaforge/Projects/IGN/target/map-data/bd_ortho_tile.png
 
 ✅ Toutes les APIs de la Géoplateforme IGN répondent et les données GeoJSON/PNG sont prêtes dans target/map-data/ !
 ```
@@ -245,44 +250,44 @@ flowchart LR
 ================================================================================
 
 Signalement Cellule de Crise :
-ALERTE : Départ de feu de végétation et risque d'orage violent signalés à la lisière du Bois de Vincennes, au 73 Avenue de Paris, 94160 Saint-Mandé. Établissez le diagnostic multi-agents et le plan d'intervention.
+ALERTE : Départ de feu de végétation et risque d'orage violent signalés à la lisière de la Forêt de Fontainebleau, Boulevard Magenta, 77300 Fontainebleau. Établissez le diagnostic multi-agents et le plan d'intervention.
 
-  🛰️ [Géoplateforme IGN Tool] geocode_address(query="73 Avenue de Paris, 94160 Saint-Mandé")
+  🛰️ [Géoplateforme IGN Tool] geocode_address(query="Boulevard Magenta, 77300 Fontainebleau")
 
 🤖 [agent-localisation] :
 📍 Rapport de localisation d'urgence (IGN / Sécurité Civile)
-* Adresse normalisée : 73 Avenue de Paris, 94160 Saint-Mandé (Code INSEE : 94067)
-* Coordonnées WGS84 : Longitude : 2.424573 | Latitude : 48.845726
-* Coordonnées Lambert-93 : X : 657 770.33 m | Y : 6 860 785.03 m (Indice de confiance : 0.97)
+* Adresse normalisée : Boulevard Magenta, 77300 Fontainebleau (Code INSEE : 77186)
+* Coordonnées WGS84 : Longitude : 2.695129 | Latitude : 48.400162
+* Coordonnées Lambert-93 : X : 677 434.61 m | Y : 6 811 140.09 m (Précision : 96,4 %)
 
-  🛰️ [Géoplateforme IGN Tool] compute_isochrone(lon=2.42457, lat=48.84573, duration=300s, profile=car)
-  🛰️ [Géoplateforme IGN Tool] get_elevation_and_slope(lon=2.42457, lat=48.84573)
-  🛰️ [Géoplateforme IGN Tool] query_bdtopo_buildings(lon=2.42457, lat=48.84573, radius=150m)
-  🛰️ [Géoplateforme IGN Tool] query_bdtopo_environment(lon=2.42457, lat=48.84573, radius=300m)
+  🛰️ [Géoplateforme IGN Tool] get_elevation_and_slope(lon=2.69513, lat=48.40016)
+  🛰️ [Géoplateforme IGN Tool] compute_isochrone(lon=2.69513, lat=48.40016, duration=300s, profile=car)
+  🛰️ [Géoplateforme IGN Tool] query_bdtopo_buildings(lon=2.69513, lat=48.40016, radius=150m)
+  🛰️ [Géoplateforme IGN Tool] query_bdtopo_environment(lon=2.69513, lat=48.40016, radius=300m)
 
 🤖 [agent-logistique] :
-🚒 Rapport Logistique & Mobilité Opérationnelle (IGN / Sécurité Civile)
-* Mode de déplacement : Véhicule d'intervention d'urgence (car) — Seuil : 5 minutes (300 s)
-* Couverture de l'enveloppe d'intervention rapide : ~2,77 km (Est-Ouest) × ~2,74 km (Nord-Sud), 114 sommets sauvegardés dans target/map-data/isochrone.geojson.
-* Englobe l'Avenue de Paris (N34), la Porte de Vincennes et les voies bordières du Bois de Vincennes.
+🚒 Rapport d'Accessibilité et Mobilité Opérationnelle (IGN bdtopo-valhalla)
+* Mode de déplacement : Véhicule d'intervention / secours (car) — Seuil : 5 minutes (300 s)
+* Couverture de l'enveloppe opérationnelle : ~4,84 km (Est-Ouest) × ~5,34 km (Nord-Sud), 228 sommets sauvegardés dans target/map-data/isochrone.geojson.
+* Couvre l'ensemble de la zone urbaine limitrophe de Fontainebleau, les axes de pénétration vers la lisière forestière et les voies d'évacuation vers le sud et l'est.
 
 🤖 [agent-topographe] :
-⛰️ Rapport d'analyse topographique RGE ALTI (IGN)
-* Altitude NGF (centre) : 51,99 m | Pente locale : 1,44 % (Nord: 51,22 m, Ouest: 51,82 m, Est: 51,17 m, Sud: 49,93 m)
-* Risque Incendie : Direction de propagation privilégiée vers le Nord-Ouest (le feu remonte la pente).
-* Risque Hydrologique / Ruissellement : Direction d'écoulement gravitaire vers le Sud-Est.
+⛰️ Rapport d'analyse topographique (IGN RGE ALTI / Sécurité Civile)
+* Altitude NGF (centre) : 75,91 m | Pente locale : 1,13 % (Ouest: 76,10 m, Nord: 76,01 m, Sud: 75,40 m, Est: 75,15 m)
+* Risque Incendie : Axe de propagation privilégié vers le Nord-Ouest (sens de la montée altimétrique).
+* Risque Ruissellement / Orage violent : Axe d'écoulement gravitaire vers le Sud-Est en direction du réseau viaire urbain.
 
 🤖 [agent-enjeux-bati] :
-🏢 Diagnostic des Enjeux Territoriaux & Bâti (BD TOPO® IGN)
-* Vulnérabilité Humaine (rayon 150 m) : 100 bâtiments exposés (58 résidentiels, 20 mixtes, 11 commerciaux, 8 sportifs, 3 annexes), 790 logements répertoriés, hauteur max 30,6 m (R+10).
-* Vulnérabilité Environnementale (rayon 300 m) : 24 zones de végétation (forêt fermée de feuillus, bois, réseau dense de haies) et présence du Ruisseau de Gravelle à proximité.
+🏢 Diagnostic des Enjeux Territoriaux et Bâtis (BD TOPO® IGN)
+* Vulnérabilité Humaine (rayon 150 m) : 65 bâtiments exposés (30 résidentiels dont collectifs R+4 de 20 logements, 23 indifférenciés/patrimoniaux incluant un édifice classé « Château », 11 annexes, 1 commercial), 212 logements répertoriés, hauteur max 16,5 m (R+5).
+* Vulnérabilité Environnementale (rayon 300 m) : Contact direct avec une forêt fermée mixte (feuillus et résineux/pins à fort potentiel calorifique) et une forêt fermée de feuillus (chênes, hêtres), ainsi que les tracés des Aqueducs du Loing et de la Vanne.
 
 🤖 [coordinateur-secours] :
-🚨 PLAN D'INTERVENTION OPÉRATIONNEL (DOS)
-1. 🚨 Point de situation : 73 Avenue de Paris, 94160 Saint-Mandé (WGS84 : 48.845726, 2.424573 | Lambert-93 : X=657 770.33 m, Y=6 860 785.03 m).
-2. ⛰️ Dynamique spatiale & Relief (RGE ALTI) : Altitude 51,99 m, pente 1,44 %. Propagation thermique vers le Nord-Ouest ; ruissellement d'orage vers le Sud / Sud-Est.
-3. 🏘️ Enjeux menacés (BD TOPO®) : 100 bâtiments et 790 logements dans les 150 m (jusqu'à 30,6 m / R+10) au contact de 24 entités végétales en lisière du Bois de Vincennes.
-4. 🚒 Plan d'accès & Directives DOS (Isochrone IGN) : Enveloppe routière 5 min de 2,77 km × 2,74 km ; établissement d'une ligne d'arrêt sur la lisière Sud de l'Avenue de Paris, confinement d'urgence des 790 logements au Nord-Ouest (coupure VMC), déploiement de moyens élévateurs aériens (BEA) et dégagement des regards pluviaux au Sud-Est.
+🛡️ PLAN D'INTERVENTION OPÉRATIONNEL (DOS)
+1. 🚨 Point de situation : Boulevard Magenta, 77300 Fontainebleau (WGS84 : 48.400162, 2.695129 | Lambert-93 : X=677 434,61 m, Y=6 811 140,09 m).
+2. ⛰️ Dynamique spatiale (RGE ALTI) : Altitude 75,91 m, pente 1,13 %. Propagation thermique vers le Nord-Ouest ; ruissellement d'orage vers le Sud-Est.
+3. 🏘️ Enjeux menacés (BD TOPO) : 65 bâtiments et 212 logements dans les 150 m (jusqu'à 16,5 m / R+5, plus un édifice patrimonial « Château ») au contact direct de la forêt fermée mixte de Fontainebleau et des Aqueducs du Loing et de la Vanne.
+4. 🚒 Plan d'accès & Directives DOS (Isochrone IGN) : Enveloppe routière 5 min de 4,84 km × 5,34 km ; barrage coupe-feu (CCF) au Nord-Ouest au contact forêt mixte, mise en sécurité prioritaire des 212 logements (résidences R+4 Boulevard Magenta), rabattement des évacuations vers le Sud-Est et rideau d'eau défensif sur l'édifice classé « Château ».
 ```
 
 ---
@@ -444,16 +449,21 @@ Grâce à la synergie entre le Skill [`.agents/skills/ign-geoplateforme/SKILL.md
 
 ---
 
-## 9. Cockpit Géospatial 3D Temps Réel ([`map-viewer.html`](map-viewer.html))
+## 9. Cockpit Géospatial 3D Temps Réel ([`web/map-viewer.html`](web/map-viewer.html))
 
-Le visualiseur 3D **MapLibre GL JS** ([`map-viewer.html`](map-viewer.html)) s'utilise à la fois :
-1. **En autonomie complète (Direct Géoplateforme)** : interroge en direct les flux **WMTS (`Plan IGN V2`, `BD ORTHO`, `Parcellaire Express`)**, extrude les bâtiments **WFS `BDTOPO_V3:batiment`** selon leur hauteur réelle (`hauteur` / `nombre_d_etages`), calcule l'altitude **RGE ALTI** et trace l'**isochrone `bdtopo-valhalla`** au clic sur n'importe quel point de la carte.
-2. **En compagnon visuel synchronisé des agents Java & MCP** : chaque appel aux outils de [`GeoplateformeTools.java`](src/main/java/fr/ign/workshop/tools/GeoplateformeTools.java) exporte ses résultats dans `target/map-data/` (`buildings.geojson`, `isochrone.geojson`, `bd_ortho_tile.png`, `agent-report.json`), que le cockpit 3D détecte et affiche automatiquement au chargement ou via le bouton **« Charger Sorties Agents Java »**.
+Le visualiseur 3D **MapLibre GL JS** ([`web/map-viewer.html`](web/map-viewer.html)) s'utilise à la fois :
+1. **En autonomie complète (Direct Géoplateforme)** : interroge en direct les flux **WMTS (`Plan IGN V2`, `BD ORTHO`, `Parcellaire Express`)**, extrude les bâtiments **WFS `BDTOPO_V3:batiment`** selon leur hauteur réelle (`hauteur` / `nombre_d_etages`), calcule l'altitude **RGE ALTI** et trace l'**isochrone `bdtopo-valhalla`** au clic sur n'importe quel point de la carte ou sur les 3 scénarios préconfigurés (**Saint-Mandé**, **Fontainebleau**, **Clermont-Ferrand**).
+2. **En compagnon visuel synchronisé en temps réel ($1,2\text{ s}$) des agents Java & MCP** :
+   - Chaque appel aux outils de [`GeoplateformeTools.java`](src/main/java/fr/ign/workshop/tools/GeoplateformeTools.java) met à jour `target/map-data/latest-state.json` et `target/map-data/latest-state.js` (`window.__IGN_LATEST_STATE__`), ainsi que `buildings.geojson`, `isochrone.geojson`, `bd_ortho_tile.png` et `agent-report.js` (`window.__IGN_AGENT_REPORT__`).
+   - Grâce au chargement dynamique par balise `<script>` de `latest-state.js`, **la synchronisation live fonctionne même en ouvrant directement `web/map-viewer.html` via `file://`** (sans serveur HTTP), et pilote automatiquement la caméra 3D (`flyTo`, orbite 3D, activation automatique de la couche **BD ORTHO** lors d'un `download_bdortho_aerial_image` ou de la couche **Cadastre** lors d'un `query_any_wfs_layer` sur les parcelles).
 
 ```bash
-# Servir le répertoire du projet pour charger les GeoJSON et rapports générés dans target/map-data/ :
+# Option 1 — Ouverture directe (la synchronisation live fonctionne via file:// grâce à latest-state.js) :
+open web/map-viewer.html
+
+# Option 2 — Via un serveur HTTP local :
 python3 -m http.server 8090
-# Puis ouvrir http://localhost:8090/map-viewer.html
+# Puis ouvrir http://localhost:8090/web/map-viewer.html
 ```
 
 ### Vue 3D — Fond Plan IGN V2, Bâtiments BD TOPO 3D extrudés par usage & Isochrone piéton
@@ -464,6 +474,14 @@ python3 -m http.server 8090
 
 ### Modale d'Inspection Multimodale VLM — Confrontation BD ORTHO 512×512 × Métriques BD TOPO
 ![Modale native d'Inspection Multimodale VLM — Confrontation entre la tuile WMS BD ORTHO 512×512 et les métriques vectorielles BD TOPO](docs/images/map-viewer-modal-screenshot.png)
+
+---
+
+## 10. Supports de Présentation PowerPoint (`docs/`)
+
+Le répertoire [`docs/`](docs) contient les présentations PowerPoint (16:9) accompagnant le workshop ainsi que leurs scripts de génération Python (`python-pptx`) :
+* [`docs/presentation-workshop-ign.pptx`](docs/presentation-workshop-ign.pptx) : Support complet de la présentation (généré par [`docs/generate_presentation.py`](docs/generate_presentation.py)).
+* [`docs/presentation-workshop-ign-progressive.pptx`](docs/presentation-workshop-ign-progressive.pptx) : Version avec dévoilement progressif étape par étape des diapositives d'architecture et de démonstration (générée par [`docs/generate_presentation_progressive.py`](docs/generate_presentation_progressive.py)).
 
 ---
 

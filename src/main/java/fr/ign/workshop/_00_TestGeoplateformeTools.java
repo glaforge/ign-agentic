@@ -65,10 +65,13 @@ public class _00_TestGeoplateformeTools {
                 + agyRegistry.getToolDefinitions().size() + " outils enregistrés (Tier-3 Reflection) -> "
                 + agyRegistry.getToolDefinitions().stream().map(d -> d.getName()).toList());
 
-        // 2. Test en direct sur le siège de l'IGN à Saint-Mandé (73 Avenue de Paris)
+        // 2. Test en direct sur Clermont-Ferrand (Place de Jaude) — déclenche un flyTo depuis Saint-Mandé dans le Cockpit 3D
+        String targetAddress = (args.length > 0 && !String.join(" ", args).isBlank())
+                ? String.join(" ", args).trim()
+                : "Place de Jaude, 63000 Clermont-Ferrand";
         System.out.println("\n" + bold(blue("2. Appels temps réel aux APIs ouvertes de la Géoplateforme (data.geopf.fr) :")));
 
-        Map<String, Object> geo = tools.geocodeAddress("73 Avenue de Paris, 94160 Saint-Mandé");
+        Map<String, Object> geo = tools.geocodeAddress(targetAddress);
         System.out.println("    -> Géocodage : " + cyan(geo.get("label").toString())
                 + " | WGS84=(" + geo.get("lon") + ", " + geo.get("lat") + ")"
                 + " | Lambert-93=(" + geo.get("lambert93_x") + ", " + geo.get("lambert93_y") + ")");

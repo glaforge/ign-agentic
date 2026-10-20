@@ -64,6 +64,10 @@ public class GeoplateformeTools {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    private static volatile String lastLabel = "73 Avenue de Paris, 94160 Saint-Mandé";
+    private static volatile double lastLon = 2.424573;
+    private static volatile double lastLat = 48.845726;
+
     // =========================================================================
     // 1. GEOCODING (Adresse / Lieu -> Coordonnées WGS84 & Lambert-93)
     // =========================================================================
@@ -98,10 +102,16 @@ public class GeoplateformeTools {
 
             double lon = coords.get(0).asDouble();
             double lat = coords.get(1).asDouble();
+            String label = props.path("label").asText();
+
+            updateLiveCockpitState("geocode_address", lon, lat, label, Map.of(
+                    "query", query,
+                    "city", props.path("city").asText("")
+            ));
 
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("status", "OK");
-            result.put("label", props.path("label").asText());
+            result.put("label", label);
             result.put("lon", lon);
             result.put("lat", lat);
             result.put("crs", "CRS:84 (WGS84 lon,lat)");
@@ -177,15 +187,22 @@ public class GeoplateformeTools {
                         + " (montée vers le " + (dzDy > 0 ? "Nord" : "Sud") + "-" + (dzDx > 0 ? "Est" : "Ouest") + ")";
             }
 
+            double roundedAlt = Math.round(zCenter * 100.0) / 100.0;
+            double roundedSlope = Math.round(slopePercent * 100.0) / 100.0;
+            updateLiveCockpitState("get_elevation_and_slope", lon, lat, null, Map.of(
+                    "altitude_center_m", roundedAlt,
+                    "slope_percent", roundedSlope
+            ));
+
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("status", "OK");
             result.put("source", "IGN RGE ALTI (ign_rge_alti_wld)");
-            result.put("altitude_center_m", Math.round(zCenter * 100.0) / 100.0);
+            result.put("altitude_center_m", roundedAlt);
             result.put("altitude_north_50m", zNorth);
             result.put("altitude_south_50m", zSouth);
             result.put("altitude_east_50m", zEast);
             result.put("altitude_west_50m", zWest);
-            result.put("slope_percent", Math.round(slopePercent * 100.0) / 100.0);
+            result.put("slope_percent", roundedSlope);
             result.put("slope_category", slopePercent < 3.0 ? "FAIBLE (< 3%)" : (slopePercent <= 8.0 ? "MODÉRÉE (3% à 8%)" : "FORTE (> 8%)"));
             result.put("orientation_ecoulement", downhillDirection);
             return result;
@@ -251,6 +268,10 @@ public class GeoplateformeTools {
             double heightKm = (maxLat - minLat) * 111.32;
 
             Path savedFile = saveMapJson("isochrone.geojson", root);
+            updateLiveCockpitState("compute_isochrone", lon, lat, null, Map.of(
+                    "profile", normalizedProfile,
+                    "duration_seconds", durationSeconds
+            ));
 
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("status", "OK");
@@ -340,6 +361,11 @@ public class GeoplateformeTools {
             }
 
             Path savedFile = saveMapJson("buildings.geojson", root);
+            updateLiveCockpitState("query_bdtopo_buildings", lon, lat, null, Map.of(
+                    "buildings_count", features.size(),
+                    "max_height_meters", maxHeight,
+                    "max_floors", maxFloors
+            ));
 
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("status", "OK");
@@ -426,6 +452,10 @@ public class GeoplateformeTools {
             }
 
             saveMapJson("vegetation.geojson", vegRoot);
+            updateLiveCockpitState("query_bdtopo_environment", lon, lat, null, Map.of(
+                    "vegetation_zones_count", vegetationZones.size(),
+                    "watercourses_count", watercourses.size()
+            ));
 
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("status", "OK");
@@ -489,6 +519,10 @@ public class GeoplateformeTools {
             }
 
             Files.write(outputPath, resp.body());
+            updateLiveCockpitState("download_bdortho_aerial_image", lon, lat, null, Map.of(
+                    "wms_url", wmsUrl,
+                    "radius_meters", effectiveRadius
+            ));
 
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("status", "OK");
@@ -690,6 +724,12 @@ public class GeoplateformeTools {
                 propertiesList.add(f.path("properties"));
             }
 
+            updateLiveCockpitState("query_any_wfs_layer", lon, lat, null, Map.of(
+                    "typeName", typeName,
+                    "features_returned", features.size(),
+                    "wfs_geojson_url", url
+            ));
+
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("status", "OK");
             result.put("typeName", typeName);
@@ -705,6 +745,49 @@ public class GeoplateformeTools {
     // =========================================================================
     // Helper Methods
     // =========================================================================
+
+    private static synchronized void updateLiveCockpitState(
+            String toolName,
+            double lon,
+            double lat,
+            String explicitLabel,
+            Map<String, Object> details
+    ) {
+        try {
+            double distMeters = Math.hypot(
+                    (lon - lastLon) * 111_320.0 * Math.cos(Math.toRadians(lat)),
+                    (lat - lastLat) * 111_320.0
+            );
+            if (explicitLabel != null && !explicitLabel.isBlank()) {
+                lastLabel = explicitLabel;
+            } else if (distMeters > 100.0) {
+                lastLabel = String.format(Locale.US, "Secteur CRS:84 (%.5f, %.5f)", lon, lat);
+            }
+            lastLon = lon;
+            lastLat = lat;
+
+            Map<String, Object> state = new LinkedHashMap<>();
+            state.put("timestamp", System.currentTimeMillis());
+            state.put("iso_timestamp", Instant.now().toString());
+            state.put("tool", toolName);
+            state.put("lon", lon);
+            state.put("lat", lat);
+            state.put("label", lastLabel);
+            state.put("details", details != null ? details : Map.of());
+
+            JsonNode stateNode = MAPPER.valueToTree(state);
+            saveMapJson("latest-state.json", stateNode);
+
+            // Export en .js également pour fonctionner même en ouvrant map-viewer.html via file:// (sans serveur HTTP/Node)
+            String jsonString = MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(stateNode);
+            Files.writeString(
+                    MAP_DATA_DIR.resolve("latest-state.js"),
+                    "window.__IGN_LATEST_STATE__ = " + jsonString + ";\n",
+                    StandardCharsets.UTF_8
+            );
+        } catch (Exception ignored) {
+        }
+    }
 
     private static String extractXmlTag(String xmlBlock, String tag) {
         String open = "<" + tag + ">";

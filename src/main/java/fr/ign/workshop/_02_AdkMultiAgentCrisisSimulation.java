@@ -191,7 +191,7 @@ public class _02_AdkMultiAgentCrisisSimulation {
                     .createSession(runner.appName(), "operateur-ign")
                     .blockingGet();
 
-            String alertPrompt = "ALERTE : Départ de feu de végétation et risque d'orage violent signalés à la lisière du Bois de Vincennes, au 73 Avenue de Paris, 94160 Saint-Mandé. Établissez le diagnostic multi-agents et le plan d'intervention.";
+            String alertPrompt = "ALERTE : Départ de feu de végétation et risque d'orage violent signalés à la lisière de la Forêt de Fontainebleau, Boulevard Magenta, 77300 Fontainebleau. Établissez le diagnostic multi-agents et le plan d'intervention.";
 
             System.out.println(bold(blue("Signalement Cellule de Crise :\n")) + cyan(alertPrompt) + "\n");
 

@@ -1441,27 +1441,27 @@ def build_presentation():
                        "FunctionTool adk = FunctionTool.create(",
                        "  tools, \"geocodeAddress\");",
                        "",
-                       "// 3. Appels live (73 Av. de Paris, Saint-Mandé)",
-                       "tools.geocodeAddress(\"73 Av. de Paris, Saint-Mandé\");",
-                       "tools.getElevationAndSlope(2.4243, 48.8445);",
-                       "tools.queryBdtopoBuildings(2.4243, 48.8445, 100);"
+                       "// 3. Appels live (Place de Jaude, Clermont-Ferrand)",
+                       "tools.geocodeAddress(\"Place de Jaude, 63000 Clermont-Ferrand\");",
+                       "tools.getElevationAndSlope(3.0821, 45.7766);",
+                       "tools.queryBdtopoBuildings(3.0821, 45.7766, 120);"
                    ])
     b.add_code_box(s, Inches(6.833), BODY_TOP, Inches(5.9), BODY_H,
-                   "Résultat Console (Données Réelles IGN)", [
+                   "Résultat Console (Clermont-Ferrand — Données Réelles IGN)", [
                        "✓ Antigravity SDK : 10 outils enregistrés",
                        "✓ Google ADK      : geocode_address prêt",
                        "",
-                       "📍 Géocodage BAN :",
-                       "   lon=2.424303, lat=48.844517 (INSEE: 94067)",
+                       "📍 Géocodage BAN (Place de Jaude) :",
+                       "   lon=3.082062, lat=45.776588 | Lambert-93=(706376, 6519667)",
                        "",
                        "⛰️ Altimétrie RGE ALTI :",
-                       "   Altitude : 48.45 m NGF | Pente : 1.1% (Plat)",
+                       "   Altitude : 387.16 m NGF | Pente : 2.12% (Sud-Ouest)",
                        "",
-                       "🏢 WFS BD TOPO V3 (rayon 100m) :",
-                       "   25 bâtiments | Hauteur moy: 15.8m | Max: 28.0m",
+                       "🏢 WFS BD TOPO V3 (rayon 120m) :",
+                       "   86 bâtiments | Hauteur max: 29.1m (10 étages)",
                        "",
-                       "🔎 Introspection WFS ('parcelle') :",
-                       "   6 couches trouvées (PARCELLAIRE-EXPRESS:parcelle)"
+                       "🚶 Isochrone 5 min piéton :",
+                       "   Enveloppe 0.59 km x 0.71 km (13 sommets)"
                    ])
 
     # SLIDE 39 : Acte 1 — Architecture (Copilote d'Urbanisme & ZAN)
@@ -1495,17 +1495,17 @@ def build_presentation():
                        "📋 RAPPORT D'INSTRUCTION — 73 AVENUE DE PARIS, SAINT-MANDÉ",
                        "",
                        "1. CONTEXTE BÂTI & TOPOGRAPHIE (BD TOPO V3 & RGE ALTI)",
-                       "   • 25 bâtiments dans un rayon de 100m (hauteur moy. 15.8m)",
-                       "   • Altitude : 48.45m NGF | Pente : 1.1% (< seuil 4% PLU)",
+                       "   • 51 bâtiments dans un rayon de 100m (hauteur max 28.6m)",
+                       "   • Altitude : 51.99m NGF | Pente : 1.44% (< seuil 3% PLU)",
                        "",
                        "2. CONFORMITÉ PLU & LOI CLIMAT / ZAN",
                        "   ❌ ALERTE HAUTEUR (LISIÈRE DU BOIS DE VINCENNES) :",
                        "    Zone arborée détectée à < 150m via query_bdtopo_environment.",
-                       "    Plafond réduit à 15m (R+4) selon l'Art. UA-10 du PLU.",
+                       "    Plafond réduit à 15m (R+4) selon l'Art. 2.2 du PLU.",
                        "    -> Le projet proposé à 18m (R+5) DÉPASSE de 3 mètres !",
                        "",
-                       "   ✅ GESTION DES EAUX : Pente 1.1% -> Bassin de rétention non requis.",
-                       "   ⚠️ OBJECTIF ZAN : Garantir 30% minimum de pleine terre."
+                       "   ✅ GESTION DES EAUX : Pente 1.44% -> Bassin de rétention non requis.",
+                       "   ✅ OBJECTIF ZAN : 51 bâtiments (>15) & 35% pleine terre."
                    ])
     b.add_card(s, Inches(8.15), BODY_TOP, Inches(4.58), BODY_H,
                badge="VALEUR AJOUTÉE", title="De 2 Heures à 15 Secondes", accent_color=G_GREEN_500,
@@ -1516,7 +1516,7 @@ def build_presentation():
 
     # SLIDE 41 : Acte 2 — Architecture (Cellule de Crise Multi-Agents ADK)
     s = b.new_slide("ACTE 2 • ARCHITECTURE (GOOGLE ADK)", "Acte 2 : Cellule de Crise Multi-Agents (Google ADK)",
-                    "Coordonner 5 agents spécialisés (`SequentialAgent` + `ParallelAgent`) lors d'une crue à Grenoble", G_GREEN_500)
+                    "Coordonner 5 agents spécialisés (`SequentialAgent` + `ParallelAgent`) en lisière de Forêt de Fontainebleau", G_GREEN_500)
     b.add_diagram_node(s, MARGIN_X, Inches(2.35), Inches(2.6), Inches(1.75),
                        "1. agent-localisation", "Géocode le sinistre\nÉcrit dans SessionState :\n{localisation_sinistre}",
                        bg_color=G_BLUE_TINT, border_color=G_BLUE_500)
@@ -1535,7 +1535,7 @@ def build_presentation():
     b.add_diagram_node(s, Inches(4.05), BODY_TOP + Inches(0.40), Inches(5.0), Inches(0.56),
                        "agent-topographe  →  {rapport_topographie}", bg_color=C_WHITE, border_color=G_GREEN_500)
     b.add_diagram_node(s, Inches(4.05), BODY_TOP + Inches(1.06), Inches(5.0), Inches(0.56),
-                       "agent-enjeux-bati  →  {rapport_bati}", bg_color=C_WHITE, border_color=G_BLUE_500)
+                       "agent-enjeux-bati  →  {rapport_enjeux}", bg_color=C_WHITE, border_color=G_BLUE_500)
     b.add_diagram_node(s, Inches(4.05), BODY_TOP + Inches(1.72), Inches(5.0), Inches(0.56),
                        "agent-logistique   →  {rapport_logistique}", bg_color=C_WHITE, border_color=G_RED_500)
 
@@ -1557,36 +1557,35 @@ def build_presentation():
     b.add_code_box(s, MARGIN_X, BODY_TOP, Inches(5.9), BODY_H,
                    "_02_AdkMultiAgentCrisisSimulation.java", [
                        "// 1. Regroupement des 3 experts en parallèle",
-                       "ParallelAgent parallelAnalysis = ParallelAgent.builder()",
-                       "  .name(\"cellule-analyse-parallele\")",
-                       "  .subAgents(topoAgent, buildingAgent, logisticsAgent)",
+                       "ParallelAgent collecteTerritoriale = ParallelAgent.builder()",
+                       "  .name(\"collecte-territoriale-parallele\")",
+                       "  .subAgents(agentTopographe, agentEnjeuxBati, agentLogistique)",
                        "  .build();",
                        "",
                        "// 2. Pipeline séquentiel complet",
                        "SequentialAgent crisisPipeline = SequentialAgent.builder()",
-                       "  .name(\"cellule-crise-geospatiale\")",
+                       "  .name(\"cellule-crise-ign\")",
                        "  .subAgents(",
-                       "    locationAgent,",
-                       "    parallelAnalysis,",
-                       "    coordinatorAgent)",
+                       "    agentLocalisation,",
+                       "    collecteTerritoriale,",
+                       "    agentCoordinateur)",
                        "  .build();"
                    ])
     b.add_code_box(s, Inches(6.833), BODY_TOP, Inches(5.9), BODY_H,
-                   "Synthèse DOS Générée (Presqu'île de Grenoble)", [
-                       "🚨 POINT DE SITUATION — CRUE DE L'ISÈRE (GRENOBLE)",
-                       "📍 Épicentre : lon=5.7049, lat=45.1972 (INSEE 38185)",
+                   "Synthèse DOS Générée (Lisière Forêt de Fontainebleau)", [
+                       "🚨 POINT DE SITUATION — FORÊT DE FONTAINEBLEAU (77300)",
+                       "📍 Boulevard Magenta : lon=2.6951, lat=48.4002 (INSEE 77186)",
                        "",
-                       "⛰️ TOPOGRAPHIE & HYDRO :",
-                       "   • Altitude 208.1m NGF | Pente 0.7% (Cuvette plate)",
-                       "   • Proximité immédiate de l'Isère (< 300m)",
+                       "⛰️ TOPOGRAPHIE & HYDRO (RGE ALTI) :",
+                       "   • Altitude 75.91m NGF | Pente 1.13% (Nord-Ouest -> Sud-Est)",
+                       "   • Propagation thermique vers le Nord-Ouest",
                        "",
-                       "🏢 ENJEUX BÂTIS (Rayon 150m) :",
-                       "   • 15 grands bâtiments tertiaires/recherche",
-                       "   • Hauteur max : 32.1m (8 étages -> refuge vertical)",
+                       "🏢 ENJEUX BÂTIS & FORÊT (BD TOPO V3) :",
+                       "   • 48 bâtiments exposés (25 résidentiels, max 16.5m / R+5)",
+                       "   • Contact direct massif forestier & 6 cours d'eau",
                        "",
-                       "🚒 LOGISTIQUE & DÉCISION DOS :",
-                       "   • Isochrone 5 min couvre l'échangeur A480 Nord",
-                       "   • Confinement vertical R+2 + blocage accès Ouest."
+                       "🚒 LOGISTIQUE & DÉCISION DOS (Isochrone 5 min) :",
+                       "   • Ligne d'arrêt lisière forestière & protection bâti Nord-Ouest."
                    ])
 
     # SLIDE 43 : Acte 3 — Architecture (Détective Territorial Multimodal)
@@ -1719,13 +1718,13 @@ def build_presentation():
 
     # SLIDE 48 : Cockpit Géospatial 3D Temps Réel — Vue Plan IGN V2 & Bâti 3D
     s = b.new_slide("COCKPIT 3D • MAPLIBRE GL JS (1/3)", "Cockpit Géospatial 3D Temps Réel : Plan IGN V2 & Bâti 3D",
-                    "Visualiser en direct chaque action de l'agent (`target/map-data/latest-state.json`)", G_BLUE_500)
+                    "Chaque appel à `GeoplateformeTools` met à jour la carte 3D en direct (`target/map-data/latest-state.json`)", G_BLUE_500)
     b.add_fitted_image(s, "map-viewer-screenshot.png", MARGIN_X, BODY_TOP, Inches(7.6), BODY_H,
-                       caption="map-viewer.html — Plan IGN V2 + Extrusion 3D BD TOPO V3 + Isochrone Valhalla")
+                       caption="web/map-viewer.html — Plan IGN V2 + Extrusion 3D BD TOPO V3 + Isochrone Valhalla")
     b.add_card(s, Inches(8.45), BODY_TOP, Inches(4.28), BODY_H,
                badge="SYNCHRONISATION LIVE", title="Caméra Pilotée par l'Agent", accent_color=G_BLUE_500,
                bullets=[
-                   ("Polling (1,5 s) : ", "Animation flyTo dès qu'un outil Java s'exécute."),
+                   ("Polling (1,5 s) : ", "Animation flyTo dès qu'un outil est appelé avec une nouvelle adresse ou coordonnée."),
                    ("Extrusion 3D : ", "Hauteur réelle issue de BDTOPO_V3:batiment."),
                    ("Isochrone : ", "Polygone Valhalla et pente RGE ALTI.")
                ])
