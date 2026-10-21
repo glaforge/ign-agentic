@@ -1660,24 +1660,24 @@ def build_presentation():
                    ("Auto-découverte : ", "L'agent explore les 64 couches WFS (cadastre, communes) sans code spécifique !")
                ])
 
-    # SLIDE 46 : Acte 4 — Carte Générée #1 (Villiers-sur-Marne)
-    s = b.new_slide("ACTE 4 • RÉSULTAT CARTOGRAPHIQUE #1", "Carte Générée par MCP : Villiers-sur-Marne (Plan IGN V2)",
+    # SLIDE 46 : Acte 4 — Carte Générée #1 (Lyon)
+    s = b.new_slide("ACTE 4 • RÉSULTAT CARTOGRAPHIQUE #1", "Carte Générée par MCP : Lyon 1er (Plan IGN V2)",
                     "Superposition automatique du bâti BD TOPO V3 sur le fond souverain Plan IGN V2", G_GREEN_500)
-    b.add_fitted_image(s, "carte_rue_leon_dauer_plan_ign.png", MARGIN_X, BODY_TOP, Inches(7.3), BODY_H,
-                       caption="docs/images/carte_rue_leon_dauer_plan_ign.png — 19 rue Léon Dauer, Villiers-sur-Marne")
+    b.add_fitted_image(s, "carte_rue_du_bat_d_argent_lyon_plan_ign.png", MARGIN_X, BODY_TOP, Inches(7.3), BODY_H,
+                       caption="docs/images/carte_rue_du_bat_d_argent_lyon_plan_ign.png — 10 rue du Bât-d'Argent, Lyon")
     b.add_card(s, Inches(8.15), BODY_TOP, Inches(4.58), BODY_H,
                badge="CHAÎNAGE AUTOMATIQUE", title="Étapes exécutées par l'Agent", accent_color=G_GREEN_500,
                bullets=[
-                   ("1. Géocodage : ", "19 rue Léon Dauer (lon=2.5469, lat=48.8286)."),
+                   ("1. Géocodage : ", "10 rue du Bât-d'Argent (lon=4.8352, lat=45.7660)."),
                    ("2. Extraction WFS : ", "Emprises bâties dans un rayon de 120 m."),
                    ("3. Rendu Carto MCP : ", "Appel de show_plan_ign_map et export PNG.")
                ])
 
-    # SLIDE 47 : Acte 4 — Carte Générée #2 (Parcelles Cadastrales à Joigny)
-    s = b.new_slide("ACTE 4 • RÉSULTAT CARTOGRAPHIQUE #2", "Introspection Cadastrale Dynamique : Joigny (Yonne)",
+    # SLIDE 47 : Acte 4 — Carte Générée #2 (Parcelles Cadastrales à Toulouse)
+    s = b.new_slide("ACTE 4 • RÉSULTAT CARTOGRAPHIQUE #2", "Introspection Cadastrale Dynamique : Toulouse (Haute-Garonne)",
                     "L'agent découvre la couche `PARCELLAIRE-EXPRESS:parcelle`, lit son XSD et affiche les parcelles", G_GREEN_500)
-    b.add_fitted_image(s, "carte_rue_des_maillottes_plan_ign.png", MARGIN_X, BODY_TOP, Inches(7.3), BODY_H,
-                       caption="docs/images/carte_rue_des_maillottes_plan_ign.png — Section cadastrale AW, Joigny")
+    b.add_fitted_image(s, "carte_rue_du_taur_toulouse_plan_ign.png", MARGIN_X, BODY_TOP, Inches(7.3), BODY_H,
+                       caption="docs/images/carte_rue_du_taur_toulouse_plan_ign.png — Section cadastrale AD, Toulouse")
     b.add_card(s, Inches(8.15), BODY_TOP, Inches(4.58), BODY_H,
                badge="DÉCOUVERTE XSD", title="Sans Aucun Code Spécifique", accent_color=G_YELLOW_500,
                bullets=[

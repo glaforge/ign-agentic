@@ -439,13 +439,13 @@ Voici le résultat de l'exploration et de l'affichage de la carte.
 
 Grâce à la synergie entre le Skill [`.agents/skills/ign-geoplateforme/SKILL.md`](.agents/skills/ign-geoplateforme/SKILL.md) (qui guide le choix des couches et l'ordre des coordonnées `CRS:84`) et les deux serveurs MCP (`ign-geoplateforme` + `ign-mcp-carto`), n'importe quelle adresse française peut être inspectée et cartographiée à la volée dans le chat :
 
-#### Rue Léon Dauer — 94350 Villiers-sur-Marne (`lon=2.537279, lat=48.825638`)
-* **100 bâtiments BD TOPO V3** recensés dans un rayon de $120\text{ m}$ (74 logements, hauteur max $13,6\text{ m}$ / R+3) :
-![Plan IGN v2 — Rue Léon Dauer, 94350 Villiers-sur-Marne](docs/images/carte_rue_leon_dauer_plan_ign.png)
+#### 10 Rue du Bât-d'Argent — 69001 Lyon (`lon=4.835225, lat=45.766017`)
+* **100 bâtiments BD TOPO V3** recensés dans un rayon de $120\text{ m}$ (712 logements, hauteur max $28,6\text{ m}$ / R+9) :
+![Plan IGN v2 — 10 Rue du Bât-d'Argent, 69001 Lyon](docs/images/carte_rue_du_bat_d_argent_lyon_plan_ign.png)
 
-#### 20 Rue des Maillottes — 89300 Joigny (`lon=3.425494, lat=47.982619`)
-* **Parcelle cadastrale** Section `AT` n° `0471` (`IDU 89206000AT0471`, contenance $642\text{ m}^2$, altitude $186,26\text{ m NGF}$, pente $5,43\text{ \%}$) et **73 bâtiments BD TOPO V3** :
-![Plan IGN v2 — 20 Rue des Maillottes, 89300 Joigny](docs/images/carte_rue_des_maillottes_plan_ign.png)
+#### 12 Rue du Taur — 31000 Toulouse (`lon=1.442731, lat=43.605488`)
+* **Parcelle cadastrale** Section `AD` n° `0120` (`IDU 31555826AD0120`, contenance $341\text{ m}^2$, altitude $143,52\text{ m NGF}$, pente $0,76\text{ \%}$) et **100 bâtiments BD TOPO V3** :
+![Plan IGN v2 — 12 Rue du Taur, 31000 Toulouse](docs/images/carte_rue_du_taur_toulouse_plan_ign.png)
 
 ---
 
